@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>WakeCheck</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-height:100vh;}
+.page{display:none;min-height:100vh;flex-direction:column;align-items:center;padding:60px 24px 40px;}
+.page.active{display:flex;}
+#pageMain{display:none;flex-direction:column;height:100vh;}
+#pageMain.active{display:flex;}
+.logo{font-size:28px;font-weight:800;margin-bottom:6px;}
+.logo span{color:#a29bfe;}
+.sub{font-size:13px;color:#5a5a80;margin-bottom:32px;}
+.card{background:#12121e;border:1px solid #252538;border-radius:16px;padding:20px;width:100%;max-width:360px;margin-bottom:16px;}
+.tabs{display:flex;background:#12121e;border:1px solid #252538;border-radius:12px;padding:4px;gap:4px;width:100%;max-width:360px;margin-bottom:20px;}
+.tab{flex:1;padding:10px;text-align:center;font-size:14px;font-weight:600;border-radius:9px;cursor:pointer;color:#5a5a80;border:none;background:transparent;}
+.tab.on{background:#6c5ce7;color:#fff;}
+.f{margin-bottom:14px;}
+.f label{display:block;font-size:12px;color:#5a5a80;margin-bottom:5px;}
+.f input,.f textarea,.f select{width:100%;background:#0a0a12;border:1px solid #252538;border-radius:10px;padding:12px 14px;color:#f0f0fa;font-family:-apple-system,sans-serif;font-size:16px;outline:none;-webkit-appearance:none;}
+.f textarea{height:100px;resize:none;}
+.f select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a5a80' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-family:-apple-system,sans-serif;font-size:16px;font-weight:700;cursor:pointer;}
+.btn-p{background:#6c5ce7;color:#fff;}
+.btn-g{background:transparent;color:#5a5a80;border:1px solid #252538;}
+.btn-sm{padding:9px 16px;width:auto;font-size:13px;border-radius:9px;}
+.hdr{padding:50px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #252538;flex-shrink:0;}
+.hdr-logo{font-size:17px;font-weight:800;}
+.hdr-logo span{color:#a29bfe;}
+.av{width:32px;height:32px;border-radius:50%;background:#1a1a28;border:2px solid #6c5ce7;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#a29bfe;overflow:hidden;}
+.av img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.body{flex:1;overflow-y:auto;padding:14px 16px 90px;-webkit-overflow-scrolling:touch;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.stat{background:#12121e;border:1px solid #252538;border-radius:12px;padding:12px 8px;text-align:center;}
+.sn{font-size:24px;font-weight:800;margin-bottom:3px;}
+.sl{font-size:10px;color:#5a5a80;}
+.sec{font-size:15px;font-weight:700;margin-bottom:10px;margin-top:4px;}
+.icard{background:#12121e;border:1px solid #252538;border-radius:14px;padding:16px;margin-bottom:12px;}
+.mi{background:#1a1a28;border-radius:12px;padding:12px;margin-bottom:8px;border-left:3px solid #252538;}
+.mi.waiting{border-left-color:#fdcb6e;}
+.mi.replied{border-left-color:#00b894;}
+.mi.no_reply{border-left-color:#e17055;}
+.mrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.mto{font-size:14px;font-weight:700;}
+.badge{font-size:11px;padding:2px 8px;border-radius:100px;font-weight:600;}
+.badge.waiting{background:rgba(253,203,110,.15);color:#fdcb6e;}
+.badge.replied{background:rgba(0,184,148,.15);color:#00b894;}
+.badge.no_reply{background:rgba(225,112,85,.15);color:#e17055;}
+.mbody{font-size:13px;line-height:1.5;margin-bottom:4px;}
+.mmeta{font-size:11px;color:#5a5a80;font-family:monospace;}
+.ri{background:#1a1a28;border-radius:12px;padding:14px;margin-bottom:8px;}
+.rfrom{font-size:13px;color:#a29bfe;font-weight:700;margin-bottom:6px;}
+.rbody{font-size:14px;line-height:1.5;margin-bottom:8px;}
+.rmeta{font-size:11px;color:#5a5a80;font-family:monospace;margin-bottom:8px;}
+.rbox{width:100%;background:#0a0a12;border:1px solid #252538;border-radius:10px;padding:10px;color:#f0f0fa;font-size:14px;resize:none;height:70px;margin-bottom:8px;}
+.fi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #252538;}
+.fi:last-child{border-bottom:none;}
+.fav{width:38px;height:38px;border-radius:50%;background:#1a1a28;border:1px solid #6c5ce7;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#a29bfe;flex-shrink:0;}
+.fn{font-size:14px;font-weight:600;}
+.fe{font-size:12px;color:#5a5a80;margin-top:1px;}
+.sbox{display:flex;gap:8px;margin-bottom:12px;}
+.si{flex:1;background:#0a0a12;border:1px solid #252538;border-radius:10px;padding:11px 13px;color:#f0f0fa;font-size:14px;outline:none;}
+.iurl{background:#0a0a12;border:1px solid #6c5ce7;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;color:#a29bfe;word-break:break-all;cursor:pointer;line-height:1.6;margin-bottom:10px;}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,18,.95);border-top:1px solid #252538;display:flex;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:#5a5a80;font-size:10px;border:none;background:transparent;}
+.nb.on{color:#a29bfe;}
+.ni{font-size:20px;}
+.alarm{position:fixed;inset:0;background:rgba(20,5,5,.97);z-index:999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;}
+.alarm.on{display:flex;}
+.aring{font-size:56px;margin-bottom:16px;animation:shake .5s infinite;}
+@keyframes shake{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.atitle{font-size:26px;font-weight:800;color:#e17055;margin-bottom:8px;text-align:center;}
+.awho{font-size:15px;color:rgba(255,255,255,.7);text-align:center;margin-bottom:36px;line-height:1.5;}
+.aclose{padding:14px 36px;background:#e17055;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a28;border:1px solid #252538;color:#f0f0fa;font-size:13px;padding:10px 16px;border-radius:100px;z-index:500;opacity:0;transition:opacity .25s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
+.toast.on{opacity:1;}
+.empty{text-align:center;padding:40px 20px;color:#5a5a80;}
+.ei{font-size:36px;margin-bottom:10px;}
+.tmpl{display:inline-block;padding:7px 12px;background:rgba(108,92,231,.12);border:1px solid #6c5ce7;border-radius:8px;color:#a29bfe;font-size:12px;cursor:pointer;margin:0 4px 6px 0;}
+</style>
+</head>
+<body>
+
+<div class="alarm" id="alarmOv">
+  <div class="aring">🚨</div>
+  <div class="atitle" id="aTitle">未返信アラーム</div>
+  <div class="awho" id="aWho">—</div>
+  <button class="aclose" onclick="closeAlarm()">確認しました</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- 認証ページ -->
+<div class="page active" id="pageAuth">
+  <div class="logo">Wake<span>Check</span></div>
+  <div class="sub">業務用 起床確認システム</div>
+  <div class="tabs">
+    <button class="tab on" onclick="switchAuth('login')">ログイン</button>
+    <button class="tab" onclick="switchAuth('reg')">新規登録</button>
+  </div>
+  <div id="fLogin" class="card">
+    <div class="f"><label>メールアドレス</label><input id="lEmail" type="email" placeholder="your@email.com"></div>
+    <div class="f" style="margin-bottom:18px;"><label>パスワード</label><input id="lPw" type="password" placeholder="パスワード"></div>
+    <button class="btn btn-p" onclick="doLogin()">ログイン</button>
+  </div>
+  <div id="fReg" class="card" style="display:none;">
+    <div class="f"><label>名前 *</label><input id="rName" type="text" placeholder="山田 太郎"></div>
+    <div class="f"><label>ユーザー名 *</label><input id="rUser" type="text" placeholder="yamada_taro"></div>
+    <div class="f"><label>メールアドレス *</label><input id="rEmail" type="email" placeholder="your@email.com"></div>
+    <div class="f"><label>電話番号</label><input id="rPhone" type="tel" placeholder="090-1234-5678"></div>
+    <div class="f" style="margin-bottom:18px;"><label>パスワード（6文字以上）*</label><input id="rPw" type="password" placeholder="パスワード"></div>
+    <div class="f" style="margin-bottom:18px;"><label>招待コード（任意）</label><input id="rInvite" type="text" placeholder="招待リンクから自動入力"></div>
+    <button class="btn btn-p" onclick="doReg()">アカウントを作成</button>
+  </div>
+</div>
+
+<!-- メインページ -->
+<div id="pageMain">
+  <div class="hdr">
+    <div class="hdr-logo">Wake<span>Check</span></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="av" id="avChar">?</div>
+      <span style="font-size:13px;color:#5a5a80;" id="hName">—</span>
+      <button onclick="doLogout()" style="background:transparent;border:none;color:#5a5a80;cursor:pointer;font-size:12px;">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- ホーム -->
+    <div id="tHome">
+      <div class="stats" style="margin-top:4px;">
+        <div class="stat"><div class="sn" style="color:#a29bfe" id="stT">0</div><div class="sl">送信済み</div></div>
+        <div class="stat"><div class="sn" style="color:#00b894" id="stR">0</div><div class="sl">返信あり</div></div>
+        <div class="stat"><div class="sn" style="color:#e17055" id="stN">0</div><div class="sl">未返信🚨</div></div>
+      </div>
+      <div class="sec">送信した確認メッセージ</div>
+      <div id="sentList"><div class="empty"><div class="ei">📭</div><p>まだメッセージを送っていません</p></div></div>
+    </div>
+    <!-- 送信 -->
+    <div id="tSend" style="display:none;">
+      <div class="sec" style="margin-top:4px;">起床確認メッセージを送る</div>
+      <div class="icard">
+        <div style="font-size:11px;color:#5a5a80;margin-bottom:6px;">📋 テンプレート</div>
+        <div style="margin-bottom:12px;">
+          <span class="tmpl" onclick="setT(0)">起床確認</span>
+          <span class="tmpl" onclick="setT(1)">案件確認</span>
+          <span class="tmpl" onclick="setT(2)">出勤確認</span>
+        </div>
+        <div class="f"><label>送信先</label><select id="sendTo"><option value="">選択してください</option></select></div>
+        <div class="f"><label>メッセージ</label><textarea id="sendBody" placeholder="本日〇〇案件 起床確認です。返信お願い致します。"></textarea></div>
+        <div class="f" style="margin-bottom:18px;"><label>返信待ち時間</label>
+          <select id="sendAlarm">
+            <option value="1">1分</option><option value="2">2分</option><option value="3">3分</option><option value="4">4分</option>
+            <option value="5">5分</option><option value="6">6分</option><option value="7">7分</option><option value="8">8分</option>
+            <option value="9">9分</option><option value="10" selected>10分</option><option value="15">15分</option>
+            <option value="20">20分</option><option value="30">30分</option><option value="45">45分</option>
+            <option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option>
+            <option value="180">3時間</option><option value="360">6時間</option><option value="720">12時間</option><option value="1440">24時間</option>
+          </select>
+        </div>
+        <!-- 時間指定送信 -->
+        <div style="background:#0a0a12;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:600;">⏰ 時間指定送信</span>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <span style="font-size:12px;color:#5a5a80;">今すぐ</span>
+              <div style="position:relative;width:40px;height:24px;">
+                <input type="checkbox" id="schedToggle" onchange="toggleSched()" style="opacity:0;width:0;height:0;position:absolute;">
+                <div id="schedSlider" style="position:absolute;inset:0;background:#252538;border-radius:12px;cursor:pointer;transition:.3s;">
+                  <div id="schedThumb" style="position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.3s;"></div>
+                </div>
+              </div>
+              <span style="font-size:12px;color:#5a5a80;">時間指定</span>
+            </label>
+          </div>
+          <div id="schedOpts" style="display:none;">
+            <div class="f"><label>送信日時</label><input type="datetime-local" id="schedAt" style="width:100%;background:#12121e;border:1px solid #252538;border-radius:10px;padding:11px 13px;color:#f0f0fa;font-size:14px;outline:none;"></div>
+            <div class="f" style="margin-bottom:0;"><label>繰り返し</label>
+              <select id="schedRepeat">
+                <option value="once">1回のみ</option>
+                <option value="daily">毎日</option>
+                <option value="weekday">平日のみ</option>
+                <option value="weekly">毎週</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-p" id="sendBtn" onclick="doSend()">🚀 送信して監視開始</button>
+        <div class="sec" style="margin-top:16px;">予約中のメッセージ</div>
+        <div id="schedList"><div class="empty"><div class="ei">📅</div><p>予約なし</p></div></div>
+      </div>
+    </div>
+    <!-- 受信 -->
+    <div id="tRecv" style="display:none;">
+      <div class="sec" style="margin-top:4px;">受信した確認メッセージ</div>
+      <div id="recvList"><div class="empty"><div class="ei">📬</div><p>メッセージがありません</p></div></div>
+    </div>
+    <!-- メンバー -->
+    <div id="tFollow" style="display:none;">
+      <div class="sec" style="margin-top:4px;">メンバーを追加</div>
+      <div class="icard">
+        <p style="font-size:13px;color:#5a5a80;margin-bottom:10px;">メールアドレスで検索して追加</p>
+        <div class="sbox">
+          <input class="si" id="searchEmail" type="email" placeholder="メールアドレス">
+          <button class="btn btn-p btn-sm" onclick="searchUser()">検索</button>
+        </div>
+        <div id="searchResult"></div>
+      </div>
+      <div class="sec">招待リンク</div>
+      <div class="icard">
+        <p style="font-size:13px;color:#5a5a80;margin-bottom:10px;">まだアカウントがない相手を招待</p>
+        <button class="btn btn-p" onclick="createInvite()" id="invBtn">🔗 招待リンクを作成</button>
+        <div id="invResult" style="display:none;margin-top:12px;">
+          <div class="iurl" id="invUrl" onclick="copyInvite()">—</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="btn btn-p btn-sm" onclick="copyInvite()" style="padding:11px;">📋 コピー</button>
+            <button class="btn btn-g btn-sm" onclick="shareInvite()" style="padding:11px;">📤 共有</button>
+          </div>
+        </div>
+      </div>
+      <div class="sec">繋がっているメンバー</div>
+      <div class="icard" style="padding:16px 16px 6px;">
+        <div id="followList"><div class="empty" style="padding:20px;"><p>まだメンバーがいません</p></div></div>
+      </div>
+    </div>
+    <!-- 設定 -->
+    <div id="tProfile" style="display:none;">
+      <div class="sec" style="margin-top:4px;">プロフィール編集</div>
+      <div class="icard">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="position:relative;">
+            <div id="pAv" class="av" style="width:60px;height:60px;font-size:22px;">?</div>
+            <label for="avInput" style="position:absolute;bottom:0;right:0;width:22px;height:22px;background:#6c5ce7;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;">✏️</label>
+            <input type="file" id="avInput" accept="image/*" style="display:none;" onchange="changeAv(this)">
+          </div>
+          <div>
+            <div id="pName" style="font-size:16px;font-weight:700;">—</div>
+            <div id="pUser" style="font-size:12px;color:#5a5a80;">@—</div>
+          </div>
+        </div>
+        <div class="f"><label>名前</label><input id="eName" type="text"></div>
+        <div class="f"><label>ユーザー名</label><input id="eUser" type="text"></div>
+        <div class="f"><label>メール</label><input id="eEmail" type="email"></div>
+        <div class="f" style="margin-bottom:18px;"><label>電話番号</label><input id="ePhone" type="tel"></div>
+        <button class="btn btn-p" onclick="saveProfile()">💾 変更を保存</button>
+      </div>
+      <div class="sec" style="margin-top:16px;">パスワード変更</div>
+      <div class="icard">
+        <div class="f"><label>現在のパスワード</label><input id="oPw" type="password"></div>
+        <div class="f"><label>新しいパスワード</label><input id="nPw" type="password"></div>
+        <div class="f" style="margin-bottom:18px;"><label>確認</label><input id="nPw2" type="password"></div>
+        <button class="btn btn-g" onclick="changePw()">🔑 パスワードを変更</button>
+      </div>
+      <div class="sec" style="margin-top:16px;">🔔 サウンド設定</div>
+      <div class="icard">
+        <div style="font-size:13px;font-weight:600;color:#a29bfe;margin-bottom:10px;">📬 受信音</div>
+        <div class="f"><label>音の種類</label>
+          <select id="recvSoundType">
+            <option value="chime">チャイム</option>
+            <option value="bell">ベル</option>
+            <option value="pop">ポップ</option>
+            <option value="ping">ピング</option>
+            <option value="none">なし</option>
+          </select>
+        </div>
+        <div class="f" style="margin-bottom:12px;">
+          <label>音量 <span id="recvVolLabel">80%</span></label>
+          <input type="range" id="recvVol" min="0" max="100" value="80" oninput="document.getElementById('recvVolLabel').textContent=this.value+'%'" style="width:100%;accent-color:#6c5ce7;">
+        </div>
+        <button onclick="testSound('recv')" class="btn btn-g btn-sm" style="margin-bottom:14px;padding:10px;width:100%;">▶ 受信音テスト</button>
+        <div style="border-top:1px solid #252538;padding-top:12px;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:600;color:#e17055;margin-bottom:10px;">🚨 アラーム音</div>
+        </div>
+        <div class="f"><label>音の種類</label>
+          <select id="alarmSoundType">
+            <option value="alarm">アラーム</option>
+            <option value="siren">サイレン</option>
+            <option value="urgent">緊急</option>
+            <option value="beep">ビープ</option>
+            <option value="none">なし</option>
+          </select>
+        </div>
+        <div class="f"><label>音量 <span id="alarmVolLabel">100%</span></label>
+          <input type="range" id="alarmVol" min="0" max="100" value="100" oninput="document.getElementById('alarmVolLabel').textContent=this.value+'%'" style="width:100%;accent-color:#e17055;">
+        </div>
+        <div class="f"><label>継続時間</label>
+          <select id="alarmDur">
+            <option value="10">10秒</option>
+            <option value="30" selected>30秒</option>
+            <option value="60">1分</option>
+            <option value="120">2分</option>
+            <option value="0">手動で止めるまで</option>
+          </select>
+        </div>
+        <div class="f" style="margin-bottom:12px;"><label>繰り返し</label>
+          <select id="alarmRepeat">
+            <option value="once">1回</option>
+            <option value="3">3回</option>
+            <option value="5" selected>5回</option>
+            <option value="interval30">30秒ごと</option>
+            <option value="interval60">1分ごと</option>
+          </select>
+        </div>
+        <button onclick="testSound('alarm')" class="btn btn-g btn-sm" style="margin-bottom:8px;padding:10px;width:100%;">▶ アラーム音テスト</button>
+        <button onclick="saveSoundSettings()" class="btn btn-p" style="margin-top:4px;">💾 サウンド設定を保存</button>
+      </div>
+      <div class="icard" style="margin-top:16px;">
+        <button class="btn btn-g" onclick="doLogout()">🚪 ログアウト</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <button class="nb on" id="nbHome" onclick="goTab('Home')"><div class="ni">🏠</div>ホーム</button>
+    <button class="nb" id="nbSend" onclick="goTab('Send')"><div class="ni">📤</div>送信</button>
+    <button class="nb" id="nbRecv" onclick="goTab('Recv')"><div class="ni">📬</div>受信</button>
+    <button class="nb" id="nbFollow" onclick="goTab('Follow')"><div class="ni">👥</div>メンバー</button>
+    <button class="nb" id="nbProfile" onclick="goTab('Profile')"><div class="ni">⚙️</div>設定</button>
+  </div>
+</div>
+
+<script>
+var SURL='https://pkdaxwuviklqzmgpamyu.supabase.co';
+var SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZGF4d3V2aWtscXptZ3BhbXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODQ1NDQsImV4cCI6MjA5NDE2MDU0NH0.MoAbSW9Hbs5Cj_-GyrM_Z4jO9__ac2SwUbSH5Z0Mtdg';
+var me=null,follows=[],invUrl='',alarmTimers={};
+var seen=JSON.parse(sessionStorage.getItem('sa')||'[]');
+var TMPLS=[
+  '本日〇〇案件 起床確認です。\nご確認の上、返信お願い致します。',
+  '本日の案件について確認をお願いします。\n問題なければ「確認しました」とご返信ください。',
+  '本日の出勤確認です。\n出勤可能であれば返信をお願いします。'
+];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);}
+function nowStr(){return new Date().toISOString().replace('T',' ').slice(0,19);}
+function hashPw(pw){var h=0;for(var i=0;i<pw.length;i++){h=((h<<5)-h)+pw.charCodeAt(i);h|=0;}return 'h'+Math.abs(h).toString(16)+pw.length;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  setTimeout(function(){t.classList.remove('on');},3000);
+}
+
+async function sb(method,table,body,query){
+  query=query||'';
+  var r=await fetch(SURL+'/rest/v1/'+table+query,{
+    method:method,
+    headers:{'Content-Type':'application/json','apikey':SKEY,'Authorization':'Bearer '+SKEY,'Prefer':'return=representation'},
+    body:body?JSON.stringify(body):null
+  });
+  if(!r.ok)throw new Error(await r.text());
+  var t=await r.text();
+  return t?JSON.parse(t):[];
+}
+function sGet(t,q){return sb('GET',t,null,q);}
+function sPost(t,b){return sb('POST',t,b,'');}
+function sPatch(t,b,q){return sb('PATCH',t,b,q);}
+function sDel(t,q){return sb('DELETE',t,null,q);}
+
+// 認証
+function switchAuth(m){
+  document.getElementById('fLogin').style.display=m==='login'?'':'none';
+  document.getElementById('fReg').style.display=m==='reg'?'':'none';
+  document.querySelectorAll('.tabs .tab').forEach(function(t,i){
+    t.classList.toggle('on',(i===0&&m==='login')||(i===1&&m==='reg'));
+  });
+}
+
+async function doLogin(){
+  var email=document.getElementById('lEmail').value.trim().toLowerCase();
+  var pw=document.getElementById('lPw').value;
+  if(!email||!pw){toast('⚠ 入力してください');return;}
+  try{
+    var rows=await sGet('users','?email=eq.'+encodeURIComponent(email)+'&password=eq.'+hashPw(pw));
+    if(!rows.length){toast('⚠ メールまたはパスワードが違います');return;}
+    me=rows[0];
+    var token=uid();
+    await sPost('sessions',{token:token,user_id:me.id,created:nowStr()});
+    localStorage.setItem('wc_t',token);localStorage.setItem('wc_u',me.id);
+    showMain();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function doReg(){
+  var name=document.getElementById('rName').value.trim();
+  var uname=document.getElementById('rUser').value.trim().toLowerCase();
+  var email=document.getElementById('rEmail').value.trim().toLowerCase();
+  var phone=document.getElementById('rPhone').value.trim();
+  var pw=document.getElementById('rPw').value;
+  var invite=document.getElementById('rInvite').value.trim();
+  if(!name||!uname||!email||!pw){toast('⚠ 必須項目を入力してください');return;}
+  if(pw.length<6){toast('⚠ パスワードは6文字以上');return;}
+  try{
+    var ex=await sGet('users','?email=eq.'+encodeURIComponent(email));
+    if(ex.length){toast('⚠ このメールは登録済みです');return;}
+    var newId=uid();
+    await sPost('users',{id:newId,name:name,username:uname,email:email,phone:phone,password:hashPw(pw),created:nowStr()});
+    if(invite){
+      var inv=await sGet('invites','?code=eq.'+invite+'&used=eq.0');
+      if(inv.length){
+        await sPost('connections',{id:uid(),user_a:inv[0].inviter_id,user_b:newId,created:nowStr()});
+        await sPost('connections',{id:uid(),user_a:newId,user_b:inv[0].inviter_id,created:nowStr()});
+        await sPatch('invites',{used:1,used_by:newId},'?code=eq.'+invite);
+        toast('✓ 登録完了！招待者と繋がりました');
+      }else{toast('✓ 登録しました');}
+    }else{toast('✓ 登録しました');}
+    switchAuth('login');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function doLogout(){
+  var token=localStorage.getItem('wc_t');
+  if(token){try{await sDel('sessions','?token=eq.'+token);}catch(e){}}
+  me=null;localStorage.removeItem('wc_t');localStorage.removeItem('wc_u');
+  document.getElementById('pageMain').style.display='none';
+  document.getElementById('pageMain').classList.remove('active');
+  document.getElementById('pageAuth').style.display='flex';
+  document.getElementById('pageAuth').classList.add('active');
+}
+
+async function autoLogin(){
+  var token=localStorage.getItem('wc_t');
+  var uid_=localStorage.getItem('wc_u');
+  if(!token||!uid_)return false;
+  try{
+    var sess=await sGet('sessions','?token=eq.'+token);
+    if(!sess.length)return false;
+    var u=await sGet('users','?id=eq.'+uid_);
+    if(!u.length)return false;
+    me=u[0];return true;
+  }catch(e){return false;}
+}
+
+function showMain(){
+  document.getElementById('pageAuth').style.display='none';
+  document.getElementById('pageAuth').classList.remove('active');
+  document.getElementById('pageMain').style.display='flex';
+  document.getElementById('pageMain').classList.add('active');
+  document.getElementById('hName').textContent='@'+(me.username||me.name);
+  document.getElementById('avChar').textContent=me.name[0];
+  loadAvatar();
+  loadFollows();
+  renderHome();
+  renderRecv();
+  startScheduler();
+  if(Notification&&Notification.permission==='default')Notification.requestPermission();
+}
+
+function goTab(name){
+  ['Home','Send','Recv','Follow','Profile'].forEach(function(t){
+    document.getElementById('t'+t).style.display=t===name?'block':'none';
+    document.getElementById('nb'+t).classList.toggle('on',t===name);
+  });
+  if(name==='Send'){updateSel();renderSchedules();}
+  if(name==='Home')renderHome();
+  if(name==='Recv')renderRecv();
+  if(name==='Follow')renderFollowList();
+  if(name==='Profile'){loadProfileForm();loadSoundSettings();}
+}
+
+async function loadFollows(){
+  try{
+    var conns=await sGet('connections','?user_a=eq.'+me.id+'&select=user_b');
+    if(!conns.length){follows=[];updateSel();return;}
+    var ids=conns.map(function(c){return c.user_b;});
+    var users=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name,username,email');
+    follows=users;updateSel();
+  }catch(e){}
+}
+
+function updateSel(){
+  var sel=document.getElementById('sendTo');
+  sel.innerHTML='<option value="">選択してください</option>';
+  follows.forEach(function(u){
+    sel.innerHTML+='<option value="'+u.id+'">'+esc(u.name)+'（@'+esc(u.username||'?')+'）</option>';
+  });
+}
+
+function renderFollowList(){
+  var el=document.getElementById('followList');
+  if(!follows.length){el.innerHTML='<div class="empty" style="padding:20px;"><p>まだメンバーがいません</p></div>';return;}
+  el.innerHTML=follows.map(function(u){
+    return '<div class="fi"><div class="fav">'+esc(u.name[0])+'</div><div style="flex:1;"><div class="fn">'+esc(u.name)+'</div><div class="fe">@'+esc(u.username||'?')+'</div></div><button onclick="goSendTo(\''+u.id+'\')" style="padding:6px 12px;background:rgba(108,92,231,.12);border:1px solid #6c5ce7;border-radius:8px;color:#a29bfe;font-size:12px;cursor:pointer;">送る</button></div>';
+  }).join('');
+}
+
+function goSendTo(uid){goTab('Send');setTimeout(function(){document.getElementById('sendTo').value=uid;},100);}
+
+async function searchUser(){
+  var email=document.getElementById('searchEmail').value.trim().toLowerCase();
+  if(!email){toast('⚠ メールを入力してください');return;}
+  var el=document.getElementById('searchResult');
+  try{
+    var rows=await sGet('users','?email=eq.'+encodeURIComponent(email)+'&select=id,name,username,email');
+    if(!rows.length){el.innerHTML='<p style="font-size:13px;color:#5a5a80;padding:8px 0;">ユーザーが見つかりません</p>';return;}
+    var u=rows[0];
+    if(u.id===me.id){el.innerHTML='<p style="font-size:13px;color:#5a5a80;padding:8px 0;">自分自身です</p>';return;}
+    var already=follows.find(function(f){return f.id===u.id;});
+    el.innerHTML='<div class="fi" style="border:1px solid #252538;border-radius:10px;padding:10px;"><div class="fav">'+esc(u.name[0])+'</div><div style="flex:1;"><div class="fn">'+esc(u.name)+'</div><div class="fe">@'+esc(u.username||'?')+'</div></div>'+(already?'<span style="font-size:12px;color:#00b894;">✓ 追加済み</span>':'<button onclick="addFollow(\''+u.id+'\')" style="padding:6px 12px;background:#6c5ce7;border:none;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;">追加</button>')+'</div>';
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function addFollow(userId){
+  try{
+    await sPost('connections',{id:uid(),user_a:me.id,user_b:userId,created:nowStr()});
+    await loadFollows();renderFollowList();
+    document.getElementById('searchResult').innerHTML='';
+    document.getElementById('searchEmail').value='';
+    toast('✓ メンバーを追加しました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+function setT(i){document.getElementById('sendBody').value=TMPLS[i];}
+
+// サウンド設定
+var sndSettings=JSON.parse(localStorage.getItem('wc_snd')||'{"recvType":"chime","recvVol":80,"alarmType":"alarm","alarmVol":100,"alarmDur":30,"alarmRepeat":"5"}');
+var audioCtx=null;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+
+function playSound(type,vol){
+  if(type==='none'||vol===0)return;
+  var v=(vol||80)/100;
+  try{
+    var ctx=getCtx();
+    var g=ctx.createGain();g.connect(ctx.destination);g.gain.value=v;
+    if(type==='chime'){
+      [523,659,784].forEach(function(freq,i){var o=ctx.createOscillator();o.connect(g);o.type='sine';o.frequency.value=freq;o.start(ctx.currentTime+i*0.15);o.stop(ctx.currentTime+i*0.15+0.3);});
+    }else if(type==='bell'){
+      var o=ctx.createOscillator();o.connect(g);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(v,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+1);o.start();o.stop(ctx.currentTime+1);
+    }else if(type==='pop'){
+      var o=ctx.createOscillator();o.connect(g);o.type='sine';o.frequency.setValueAtTime(800,ctx.currentTime);o.frequency.exponentialRampToValueAtTime(400,ctx.currentTime+0.1);g.gain.setValueAtTime(v,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);o.start();o.stop(ctx.currentTime+0.1);
+    }else if(type==='ping'){
+      var o=ctx.createOscillator();o.connect(g);o.type='sine';o.frequency.value=1200;g.gain.setValueAtTime(v,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);o.start();o.stop(ctx.currentTime+0.5);
+    }else if(type==='alarm'){
+      for(var i=0;i<8;i++){var o=ctx.createOscillator(),gn=ctx.createGain();o.connect(gn);gn.connect(ctx.destination);o.type='sawtooth';o.frequency.value=880;var t=ctx.currentTime+i*0.4;gn.gain.setValueAtTime(v*0.8,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.start(t);o.stop(t+0.37);}
+    }else if(type==='siren'){
+      var o=ctx.createOscillator();o.connect(g);o.type='sawtooth';o.frequency.setValueAtTime(440,ctx.currentTime);o.frequency.linearRampToValueAtTime(880,ctx.currentTime+0.5);o.frequency.linearRampToValueAtTime(440,ctx.currentTime+1);o.frequency.linearRampToValueAtTime(880,ctx.currentTime+1.5);g.gain.setValueAtTime(v,ctx.currentTime);o.start();o.stop(ctx.currentTime+2);
+    }else if(type==='urgent'){
+      for(var i=0;i<6;i++){var o=ctx.createOscillator(),gn=ctx.createGain();o.connect(gn);gn.connect(ctx.destination);o.type='square';o.frequency.value=i%2===0?1000:800;var t=ctx.currentTime+i*0.2;gn.gain.setValueAtTime(v*0.5,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.18);o.start(t);o.stop(t+0.2);}
+    }else if(type==='beep'){
+      for(var i=0;i<3;i++){var o=ctx.createOscillator(),gn=ctx.createGain();o.connect(gn);gn.connect(ctx.destination);o.type='sine';o.frequency.value=1000;var t=ctx.currentTime+i*0.3;gn.gain.setValueAtTime(v,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.15);o.start(t);o.stop(t+0.15);}
+    }
+  }catch(e){}
+}
+
+function testSound(mode){
+  if(mode==='recv'){playSound(document.getElementById('recvSoundType').value,parseInt(document.getElementById('recvVol').value));}
+  else{playSound(document.getElementById('alarmSoundType').value,parseInt(document.getElementById('alarmVol').value));}
+}
+
+function saveSoundSettings(){
+  sndSettings={
+    recvType:document.getElementById('recvSoundType').value,
+    recvVol:parseInt(document.getElementById('recvVol').value),
+    alarmType:document.getElementById('alarmSoundType').value,
+    alarmVol:parseInt(document.getElementById('alarmVol').value),
+    alarmDur:parseInt(document.getElementById('alarmDur').value),
+    alarmRepeat:document.getElementById('alarmRepeat').value
+  };
+  localStorage.setItem('wc_snd',JSON.stringify(sndSettings));
+  toast('✓ サウンド設定を保存しました');
+}
+
+function loadSoundSettings(){
+  var s=sndSettings;
+  function set(id,v){var el=document.getElementById(id);if(el&&v!==undefined)el.value=v;}
+  set('recvSoundType',s.recvType);set('alarmSoundType',s.alarmType);
+  set('alarmDur',s.alarmDur);set('alarmRepeat',s.alarmRepeat);
+  var rv=document.getElementById('recvVol');if(rv&&s.recvVol!==undefined){rv.value=s.recvVol;document.getElementById('recvVolLabel').textContent=s.recvVol+'%';}
+  var av=document.getElementById('alarmVol');if(av&&s.alarmVol!==undefined){av.value=s.alarmVol;document.getElementById('alarmVolLabel').textContent=s.alarmVol+'%';}
+}
+
+// 時間指定送信
+var schedIntervalId=null;
+function toggleSched(){
+  var on=document.getElementById('schedToggle').checked;
+  document.getElementById('schedOpts').style.display=on?'block':'none';
+  document.getElementById('schedSlider').style.background=on?'#6c5ce7':'#252538';
+  document.getElementById('schedThumb').style.transform=on?'translateX(16px)':'none';
+  document.getElementById('sendBtn').textContent=on?'⏰ 予約する':'🚀 送信して監視開始';
+  if(on){
+    var d=new Date(Date.now()+10*60000);
+    document.getElementById('schedAt').value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  }
+}
+
+async function renderSchedules(){
+  try{
+    var scheds=await sGet('schedules','?sender_id=eq.'+me.id+'&active=eq.1&order=schedule_at.asc');
+    var el=document.getElementById('schedList');
+    if(!scheds.length){el.innerHTML='<div class="empty"><div class="ei">📅</div><p>予約なし</p></div>';return;}
+    var ids=[...new Set(scheds.map(function(s){return s.receiver_id;}))];
+    var nm={};
+    if(ids.length){var u=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');u.forEach(function(x){nm[x.id]=x.name;});}
+    var rl={once:'1回',daily:'毎日',weekday:'平日',weekly:'毎週'};
+    el.innerHTML=scheds.map(function(s){
+      return '<div class="mi waiting" style="border-left-color:#a29bfe;"><div class="mrow"><span class="mto">→ '+esc(nm[s.receiver_id]||'?')+'</span><span class="badge" style="background:rgba(162,155,254,.15);color:#a29bfe;">'+(rl[s.repeat]||'1回')+'</span></div><div class="mbody">'+esc(s.body)+'</div><div class="mmeta">⏰ '+s.schedule_at.slice(0,16)+' · ⏱'+s.alarm_min+'分</div><button onclick="cancelSched(''+s.id+'')" style="margin-top:6px;padding:5px 12px;background:rgba(225,112,85,.15);border:1px solid rgba(225,112,85,.3);border-radius:7px;color:#e17055;font-size:11px;cursor:pointer;">キャンセル</button></div>';
+    }).join('');
+  }catch(e){}
+}
+
+async function cancelSched(id){
+  try{await sPatch('schedules',{active:0},'?id=eq.'+id);toast('予約をキャンセルしました');renderSchedules();}
+  catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// スケジューラー（30秒ごとにチェック）
+function startScheduler(){
+  setInterval(async function(){
+    if(!me)return;
+    try{
+      var now=new Date();
+      var nowMin=now.toISOString().replace('T',' ').slice(0,16);
+      var scheds=await sGet('schedules','?sender_id=eq.'+me.id+'&active=eq.1');
+      for(var i=0;i<scheds.length;i++){
+        var s=scheds[i];
+        if(s.schedule_at.slice(0,16)!==nowMin)continue;
+        if(s.last_sent&&s.last_sent.slice(0,16)===nowMin)continue;
+        // 送信実行
+        var msgId=uid();
+        await sPost('messages',{id:msgId,sender_id:me.id,receiver_id:s.receiver_id,body:s.body,alarm_min:s.alarm_min,status:'waiting',sent_at:nowStr()});
+        startAlarm(msgId,s.alarm_min,s.receiver_id);
+        toast('⏰ 予約メッセージを送信しました');
+        // 次回送信日時を計算
+        var next=new Date(s.schedule_at);
+        if(s.repeat==='once'){await sPatch('schedules',{active:0,last_sent:nowStr()},'?id=eq.'+s.id);}
+        else if(s.repeat==='daily'){next.setDate(next.getDate()+1);await sPatch('schedules',{schedule_at:new Date(next.getTime()-next.getTimezoneOffset()*60000).toISOString().slice(0,16),last_sent:nowStr()},'?id=eq.'+s.id);}
+        else if(s.repeat==='weekday'){do{next.setDate(next.getDate()+1);}while(next.getDay()===0||next.getDay()===6);await sPatch('schedules',{schedule_at:new Date(next.getTime()-next.getTimezoneOffset()*60000).toISOString().slice(0,16),last_sent:nowStr()},'?id=eq.'+s.id);}
+        else if(s.repeat==='weekly'){next.setDate(next.getDate()+7);await sPatch('schedules',{schedule_at:new Date(next.getTime()-next.getTimezoneOffset()*60000).toISOString().slice(0,16),last_sent:nowStr()},'?id=eq.'+s.id);}
+        renderSchedules();renderHome();
+      }
+    }catch(e){}
+  },30000);
+}
+
+async function doSend(){
+  var to=document.getElementById('sendTo').value;
+  var body=document.getElementById('sendBody').value.trim();
+  var alarm=parseInt(document.getElementById('sendAlarm').value)||10;
+  var isSched=document.getElementById('schedToggle').checked;
+  if(!to){toast('⚠ 送信先を選択してください');return;}
+  if(!body){toast('⚠ メッセージを入力してください');return;}
+  if(isSched){
+    // 時間指定送信
+    var schedAt=document.getElementById('schedAt').value;
+    var repeat=document.getElementById('schedRepeat').value;
+    if(!schedAt){toast('⚠ 送信日時を入力してください');return;}
+    try{
+      await sPost('schedules',{id:uid(),sender_id:me.id,receiver_id:to,body:body,alarm_min:alarm,schedule_at:schedAt,repeat:repeat,active:1,created:nowStr()});
+      document.getElementById('sendBody').value='';
+      document.getElementById('schedToggle').checked=false;
+      toggleSched();
+      toast('⏰ 送信予約しました！');
+      renderSchedules();
+    }catch(e){toast('⚠ 予約エラー: '+e.message);}
+  }else{
+    // 即時送信
+    try{
+      var msgId=uid();
+      await sPost('messages',{id:msgId,sender_id:me.id,receiver_id:to,body:body,alarm_min:alarm,status:'waiting',sent_at:nowStr()});
+      document.getElementById('sendBody').value='';
+      toast('✓ 送信しました。'+alarm+'分間監視します');
+      startAlarm(msgId,alarm,to);
+      goTab('Home');
+    }catch(e){toast('⚠ 送信エラー: '+e.message);}
+  }
+}
+
+function startAlarm(msgId,alarmMin,receiverId){
+  if(alarmTimers[msgId])clearTimeout(alarmTimers[msgId]);
+  alarmTimers[msgId]=setTimeout(async function(){
+    try{
+      var rows=await sGet('messages','?id=eq.'+msgId+'&select=status,replied_at');
+      if(rows.length&&rows[0].status==='waiting'){
+        // 返信なし → no_replyに更新してアラーム発動
+        await sPatch('messages',{status:'no_reply'},'?id=eq.'+msgId);
+        var recv=follows.find(function(u){return u.id===receiverId;});
+        showAlarm(recv?recv.name:'相手',alarmMin);
+        renderHome();
+      } else if(rows.length&&rows[0].status==='replied'){
+        // 返信あり → アラームなし、ホームを更新するだけ
+        renderHome();
+      }
+    }catch(e){}
+  },alarmMin*60*1000);
+}
+
+async function renderHome(){
+  try{
+    var msgs=await sGet('messages','?sender_id=eq.'+me.id+'&order=sent_at.desc');
+    document.getElementById('stT').textContent=msgs.length;
+    document.getElementById('stR').textContent=msgs.filter(function(m){return m.status==='replied';}).length;
+    document.getElementById('stN').textContent=msgs.filter(function(m){return m.status==='no_reply';}).length;
+    var el=document.getElementById('sentList');
+    if(!msgs.length){el.innerHTML='<div class="empty"><div class="ei">📭</div><p>まだメッセージを送っていません</p></div>';return;}
+    var ids=[...new Set(msgs.map(function(m){return m.receiver_id;}))];
+    var nm={};
+    if(ids.length){var u=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');u.forEach(function(x){nm[x.id]=x.name;});}
+    var bl={waiting:'監視中 ⏱',replied:'返信あり ✅',no_reply:'未返信 🚨'};
+    el.innerHTML=msgs.map(function(m){
+      var repliedInfo='';
+      if(m.status==='replied'&&m.replied_at){
+        // 時刻をHH:MM形式に変換
+        var rt=m.replied_at.slice(11,16);
+        repliedInfo='<div style="margin-top:6px;padding:8px 10px;background:rgba(0,184,148,.1);border-radius:8px;font-size:12px;color:#00b894;">✅ '+esc(nm[m.receiver_id]||'?')+'さん '+rt+' 確認しました</div>';
+      }
+      return '<div class="mi '+m.status+'"><div class="mrow"><span class="mto">→ '+esc(nm[m.receiver_id]||'?')+'</span><span class="badge '+m.status+'">'+(bl[m.status]||m.status)+'</span></div><div class="mbody">'+esc(m.body)+'</div><div class="mmeta">'+m.sent_at+' · ⏱'+m.alarm_min+'分</div>'+repliedInfo+'</div>';
+    }).join('');
+    msgs.filter(function(m){return m.status==='no_reply'&&seen.indexOf(m.id)<0;}).forEach(function(m){
+      seen.push(m.id);sessionStorage.setItem('sa',JSON.stringify(seen));
+      var n=nm[m.receiver_id]||'相手';
+      showAlarm(n,m.alarm_min);
+    });
+  }catch(e){}
+}
+
+async function renderRecv(){
+  try{
+    var msgs=await sGet('messages','?receiver_id=eq.'+me.id+'&order=sent_at.desc');
+    var el=document.getElementById('recvList');
+    if(!msgs.length){el.innerHTML='<div class="empty"><div class="ei">📬</div><p>メッセージがありません</p></div>';return;}
+    var ids=[...new Set(msgs.map(function(m){return m.sender_id;}))];
+    var nm={};
+    if(ids.length){var u=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');u.forEach(function(x){nm[x.id]=x.name;});}
+    el.innerHTML=msgs.map(function(m){
+      return '<div class="ri"><div class="rfrom">📩 '+esc(nm[m.sender_id]||'?')+' より</div><div class="rbody">'+esc(m.body)+'</div><div class="rmeta">'+m.sent_at+'</div>'+(m.status==='waiting'?'<div style="margin-bottom:8px;"><button class="btn btn-p" style="padding:12px;" onclick="doQuickReply(\''+m.id+'\')" >✓ 確認しました</button></div><details style="margin-top:6px;"><summary style="font-size:12px;color:#5a5a80;cursor:pointer;">別の返信を入力する</summary><div style="margin-top:8px;"><textarea class="rbox" id="rp-'+m.id+'" placeholder="返信を入力"></textarea><button class="btn btn-p" style="padding:11px;" onclick="doReply(\''+m.id+'\')" >送信</button></div></details>':'<div style="font-size:12px;color:#00b894;font-weight:600;">✓ 返信済み</div>')+'</div>';
+    }).join('');
+  }catch(e){}
+}
+
+async function doQuickReply(msgId){
+  try{
+    await sPatch('messages',{status:'replied',replied_at:nowStr()},'?id=eq.'+msgId);
+    toast('✓ 「確認しました」と返信しました');
+    renderRecv();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function doReply(msgId){
+  var el=document.getElementById('rp-'+msgId);
+  var body=el?el.value.trim():'';
+  if(!body){toast('⚠ 返信を入力してください');return;}
+  try{
+    await sPatch('messages',{status:'replied',replied_at:nowStr()},'?id=eq.'+msgId);
+    toast('✓ 返信しました');renderRecv();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function createInvite(){
+  var btn=document.getElementById('invBtn');
+  btn.textContent='生成中...';btn.disabled=true;
+  try{
+    var code=uid().slice(0,12);
+    await sPost('invites',{code:code,inviter_id:me.id,used:0,created:nowStr()});
+    invUrl=location.href.split('?')[0]+'?invite='+code;
+    document.getElementById('invUrl').textContent=invUrl;
+    document.getElementById('invResult').style.display='block';
+    toast('✓ 招待リンクを作成しました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+  btn.textContent='🔗 招待リンクを作成';btn.disabled=false;
+}
+
+function copyInvite(){
+  if(!invUrl)return;
+  navigator.clipboard.writeText(invUrl).then(function(){toast('✓ コピーしました！LINEで送ってください');}).catch(function(){
+    var el=document.createElement('textarea');el.value=invUrl;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);toast('✓ コピーしました');
+  });
+}
+
+function shareInvite(){
+  if(navigator.share)navigator.share({title:'WakeCheckに招待',url:invUrl});
+  else copyInvite();
+}
+
+function showAlarm(name,min){
+  document.getElementById('aTitle').textContent=name+' さんから返信がありません';
+  document.getElementById('aWho').textContent=min+'分以内に返信がありませんでした';
+  document.getElementById('alarmOv').classList.add('on');
+  // サウンド設定に従って再生
+  var alarmInterval=null;
+  var repeat=sndSettings.alarmRepeat||'5';
+  var maxCount=repeat==='once'?1:repeat==='3'?3:repeat==='5'?5:99999;
+  var intervalMs=repeat==='interval30'?30000:repeat==='interval60'?60000:3000;
+  var count=0;
+  function doPlay(){
+    playSound(sndSettings.alarmType||'alarm',sndSettings.alarmVol!==undefined?sndSettings.alarmVol:100);
+    count++;
+    if(count<maxCount){alarmInterval=setTimeout(doPlay,intervalMs);}
+  }
+  doPlay();
+  // 継続時間後に停止
+  var dur=sndSettings.alarmDur!==undefined?sndSettings.alarmDur:30;
+  if(dur>0){setTimeout(function(){if(alarmInterval)clearTimeout(alarmInterval);},dur*1000);}
+  // プッシュ通知
+  if(Notification&&Notification.permission==='granted'){new Notification('🚨 未返信アラーム',{body:name+'さんから'+min+'分以内に返信がありません'});}
+}
+function closeAlarm(){document.getElementById('alarmOv').classList.remove('on');}
+
+function loadProfileForm(){
+  if(!me)return;
+  document.getElementById('pAv').textContent=me.name[0];
+  document.getElementById('pName').textContent=me.name;
+  document.getElementById('pUser').textContent='@'+(me.username||'');
+  document.getElementById('eName').value=me.name||'';
+  document.getElementById('eUser').value=me.username||'';
+  document.getElementById('eEmail').value=me.email||'';
+  document.getElementById('ePhone').value=me.phone||'';
+  loadAvatar();
+}
+
+async function saveProfile(){
+  var name=document.getElementById('eName').value.trim();
+  var uname=document.getElementById('eUser').value.trim().toLowerCase();
+  var email=document.getElementById('eEmail').value.trim().toLowerCase();
+  var phone=document.getElementById('ePhone').value.trim();
+  if(!name||!uname||!email){toast('⚠ 名前・ユーザー名・メールは必須');return;}
+  try{
+    await sPatch('users',{name:name,username:uname,email:email,phone:phone},'?id=eq.'+me.id);
+    me.name=name;me.username=uname;me.email=email;me.phone=phone;
+    document.getElementById('hName').textContent='@'+uname;
+    document.getElementById('avChar').textContent=name[0];
+    loadProfileForm();toast('✓ 更新しました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+async function changePw(){
+  var op=document.getElementById('oPw').value;
+  var np=document.getElementById('nPw').value;
+  var np2=document.getElementById('nPw2').value;
+  if(!op||!np||!np2){toast('⚠ 全項目を入力してください');return;}
+  if(np!==np2){toast('⚠ 新パスワードが一致しません');return;}
+  if(np.length<6){toast('⚠ 6文字以上にしてください');return;}
+  if(hashPw(op)!==me.password){toast('⚠ 現在のパスワードが違います');return;}
+  try{
+    await sPatch('users',{password:hashPw(np)},'?id=eq.'+me.id);
+    me.password=hashPw(np);
+    document.getElementById('oPw').value='';document.getElementById('nPw').value='';document.getElementById('nPw2').value='';
+    toast('✓ パスワードを変更しました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+function changeAv(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    localStorage.setItem('wc_av_'+me.id,e.target.result);
+    updateAvDisplay(e.target.result);
+    toast('✓ アイコンを変更しました');
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateAvDisplay(url){
+  ['avChar','pAv'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+  });
+}
+
+function loadAvatar(){
+  if(!me)return;
+  var url=localStorage.getItem('wc_av_'+me.id);
+  if(url)updateAvDisplay(url);
+}
+
+// ポーリング
+setInterval(function(){if(me){renderHome();renderRecv();}},10000);
+
+// URLパラメータから招待コード自動入力
+(function(){
+  var inv=new URLSearchParams(location.search).get('invite');
+  if(inv){switchAuth('reg');setTimeout(function(){document.getElementById('rInvite').value=inv;},100);}
+})();
+
+// 起動 - Supabase設定を自動セットしてスキップ
+(async function(){
+  try{
+    // URLとキーを自動設定（ユーザーの入力不要）
+    SURL='https://pkdaxwuviklqzmgpamyu.supabase.co';
+    SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZGF4d3V2aWtscXptZ3BhbXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODQ1NDQsImV4cCI6MjA5NDE2MDU0NH0.MoAbSW9Hbs5Cj_-GyrM_Z4jO9__ac2SwUbSH5Z0Mtdg';
+    var ok=await autoLogin();
+    if(ok){
+      showMain();
+    } else {
+      // ログイン画面を表示
+      document.getElementById('pageAuth').style.display='flex';
+      document.getElementById('pageAuth').classList.add('active');
+    }
+  }catch(e){
+    console.log('init error:',e);
+    document.getElementById('pageAuth').style.display='flex';
+    document.getElementById('pageAuth').classList.add('active');
+  }
+})();
+</script>
+</body>
+</html>
