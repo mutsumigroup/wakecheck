@@ -597,7 +597,7 @@ async function renderSchedules(){
     if(ids.length){var u=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');u.forEach(function(x){nm[x.id]=x.name;});}
     var rl={once:'1回',daily:'毎日',weekday:'平日',weekly:'毎週'};
     el.innerHTML=scheds.map(function(s){
-      return '<div class="mi waiting" style="border-left-color:#a29bfe;"><div class="mrow"><span class="mto">→ '+esc(nm[s.receiver_id]||'?')+'</span><span class="badge" style="background:rgba(162,155,254,.15);color:#a29bfe;">'+(rl[s.repeat]||'1回')+'</span></div><div class="mbody">'+esc(s.body)+'</div><div class="mmeta">⏰ '+s.schedule_at.slice(0,16)+' · ⏱'+s.alarm_min+'分</div><button onclick="cancelSched(''+s.id+'')" style="margin-top:6px;padding:5px 12px;background:rgba(225,112,85,.15);border:1px solid rgba(225,112,85,.3);border-radius:7px;color:#e17055;font-size:11px;cursor:pointer;">キャンセル</button></div>';
+      return '<div class="mi waiting" style="border-left-color:#a29bfe;"><div class="mrow"><span class="mto">→ '+esc(nm[s.receiver_id]||'?')+'</span><span class="badge" style="background:rgba(162,155,254,.15);color:#a29bfe;">'+(rl[s.repeat]||'1回')+'</span></div><div class="mbody">'+esc(s.body)+'</div><div class="mmeta">⏰ '+s.schedule_at.slice(0,16)+' · ⏱'+s.alarm_min+'分</div><button onclick="cancelSched(\''+s.id+'\')" style="margin-top:6px;padding:5px 12px;background:rgba(225,112,85,.15);border:1px solid rgba(225,112,85,.3);border-radius:7px;color:#e17055;font-size:11px;cursor:pointer;">キャンセル</button></div>';
     }).join('');
   }catch(e){}
 }
