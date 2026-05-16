@@ -319,6 +319,19 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
         <button onclick="testSound('alarm')" class="btn btn-g btn-sm" style="margin-bottom:8px;padding:10px;width:100%;">▶ アラーム音テスト</button>
         <button onclick="saveSoundSettings()" class="btn btn-p" style="margin-top:4px;">💾 サウンド設定を保存</button>
       </div>
+
+      <!-- Web Push通知設定 -->
+      <div class="sec" style="margin-top:16px;">📲 バックグラウンド通知（Web Push）</div>
+      <div class="icard">
+        <div style="font-size:12px;color:#8888aa;margin-bottom:10px;">スマホがスリープ中・他のアプリ使用中でも通知が届きます。</div>
+        <div style="margin-bottom:10px;padding:10px;background:#12121e;border-radius:10px;font-size:13px;" id="pushStatus">確認中...</div>
+        <button onclick="recheckPushPermission()" class="btn btn-p" style="margin-bottom:8px;width:100%;">🔔 通知を有効にする</button>
+        <button onclick="testWebPush()" class="btn btn-g" style="width:100%;">▶ テスト通知を送る</button>
+        <div style="margin-top:10px;font-size:11px;color:#5a5a80;">
+          ⚠ iPhoneの場合：Safariで開き「ホーム画面に追加」してから有効にしてください。
+        </div>
+      </div>
+
       <div class="icard" style="margin-top:16px;">
         <button class="btn btn-g" onclick="doLogout()">🚪 ログアウト</button>
       </div>
@@ -338,6 +351,48 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
 var SURL='https://pkdaxwuviklqzmgpamyu.supabase.co';
 var SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZGF4d3V2aWtscXptZ3BhbXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODQ1NDQsImV4cCI6MjA5NDE2MDU0NH0.MoAbSW9Hbs5Cj_-GyrM_Z4jO9__ac2SwUbSH5Z0Mtdg';
 var me=null,follows=[],invUrl='',alarmTimers={};
+
+// ===== Web Push通知 =====
+var VAPID_PUBLIC_KEY = localStorage.getItem('wc_vapid_pub') || '';
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = atob(base64);
+  var arr = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  return arr;
+}
+
+async function registerPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Web Push非対応ブラウザ');return null;
+  }
+  try {
+    var reg = await navigator.serviceWorker.register('./sw.js');
+    await navigator.serviceWorker.ready;
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('⚠ 通知を許可してください'); return null; }
+    if (!VAPID_PUBLIC_KEY) return reg;
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    var subJson = sub.toJSON();
+    await sPatch('users', {
+      push_endpoint: subJson.endpoint,
+      push_p256dh: subJson.keys ? subJson.keys.p256dh : '',
+      push_auth: subJson.keys ? subJson.keys.auth : ''
+    }, '?id=eq.' + me.id);
+    console.log('Push購読完了');
+    return sub;
+  } catch(e) { console.log('Push登録エラー:', e); return null; }
+}
+
+
 // localStorageで永続化（タブ・ブラウザを閉じても再アラームしない）
 var seen=JSON.parse(localStorage.getItem('wc_sa')||'[]');
 // このセッション開始時刻（起動前の過去メッセージはアラーム対象外）
@@ -461,7 +516,7 @@ function showMain(){
   renderHome();
   renderRecv();
   startScheduler();
-  if(Notification&&Notification.permission==='default')Notification.requestPermission();
+  registerPush();
 }
 
 function goTab(name){
@@ -473,6 +528,7 @@ function goTab(name){
   if(name==='Home')renderHome();
   if(name==='Recv')renderRecv();
   if(name==='Follow')renderFollowList();
+  if(name==='Profile')updatePushStatus();
   if(name==='Profile'){loadProfileForm();loadSoundSettings();}
 }
 
@@ -620,6 +676,35 @@ function testSound(mode){
   else{playSound(document.getElementById('alarmSoundType').value,parseInt(document.getElementById('alarmVol').value));}
 }
 
+async function testWebPush(){
+  var reg = await navigator.serviceWorker.getRegistration('./sw.js');
+  if(!reg){toast('⚠ Service Worker未登録。ページをリロードしてください');return;}
+  reg.showNotification('🔔 WakeCheck テスト通知',{
+    body:'Web Push通知が正常に動作しています！',tag:'wc-test'
+  });
+}
+
+async function recheckPushPermission(){
+  var result = await registerPush();
+  if(result) toast('✅ Web Push通知を有効にしました');
+  updatePushStatus();
+}
+
+function updatePushStatus(){
+  var el = document.getElementById('pushStatus');
+  if(!el) return;
+  if(!('serviceWorker' in navigator && 'PushManager' in window)){
+    el.textContent='❌ このブラウザはWeb Push非対応';el.style.color='#e17055';return;
+  }
+  if(Notification.permission==='granted'){
+    el.textContent='✅ 通知ON（有効）';el.style.color='#00b894';
+  } else if(Notification.permission==='denied'){
+    el.textContent='❌ 通知がブロックされています（ブラウザ設定で許可してください）';el.style.color='#e17055';
+  } else {
+    el.textContent='⚠ 通知が未許可です';el.style.color='#fdcb6e';
+  }
+}
+
 function saveSoundSettings(){
   sndSettings={
     recvType:document.getElementById('recvSoundType').value,
@@ -748,18 +833,21 @@ function startAlarm(msgId,alarmMin,receiverId,sentAt){
   if(delay<=0)return; // 既に期限切れ → アラームセットしない
   alarmTimers[msgId]=setTimeout(async function(){
     try{
+      // タイマー発火 → alarmTimers に記録を残す（renderHome の救済フラグとして使う）
+      // status チェック
       var rows=await sGet('messages','?id=eq.'+msgId+'&select=status,replied_at');
       if(rows.length&&rows[0].status==='waiting'){
-        // 返信なし → no_replyに更新してアラーム発動
+        // 返信なし → no_replyに更新。アラームは renderHome のポーリングで鳴らす
         await sPatch('messages',{status:'no_reply'},'?id=eq.'+msgId);
-        var recv=follows.find(function(u){return u.id===receiverId;});
-        showAlarm(recv?recv.name:'相手',alarmMin);
-        renderHome();
+        renderHome(); // ← ここで seen チェックを経由してアラームが鳴る
       } else if(rows.length&&rows[0].status==='replied'){
-        // 返信あり → アラームなし
+        delete alarmTimers[msgId];
         renderHome();
       }
-    }catch(e){}
+    }catch(e){
+      // 通信失敗してもrenderHomeに任せる
+      renderHome();
+    }
   },delay);
 }
 
@@ -784,19 +872,27 @@ async function renderHome(){
       }
       return '<div class="mi '+m.status+'"><div class="mrow"><span class="mto">→ '+esc(nm[m.receiver_id]||'?')+'</span><span class="badge '+m.status+'">'+(bl[m.status]||m.status)+'</span></div><div class="mbody">'+esc(m.body)+'</div><div class="mmeta">'+m.sent_at+' · ⏱'+m.alarm_min+'分</div>'+repliedInfo+'</div>';
     }).join('');
-    // no_reply かつ今回セッション中に新たに確定したもののみアラーム
+    // no_reply かつ未通知のものをアラーム
+    // タイマーが止まっていてもポーリング復帰時に検知できる設計
     msgs.filter(function(m){
       if(m.status!=='no_reply')return false;
       if(seen.indexOf(m.id)>=0)return false;
-      // sent_at + alarm_min が _appStartTime より前なら過去扱いでアラームしない
+      // 自分がタイマーをセットした（今回のセッションで送信した）メッセージ → アラーム
+      if(alarmTimers[m.id]!==undefined)return true;
+      // タイマーをセットしていないが、sent_at + alarm_min がアプリ起動後に期限切れになったもの → アラーム
+      // （スリープ中にタイマーが止まった場合の救済）
       if(m.sent_at){
         var sentMs=new Date(m.sent_at.replace(' ','T')).getTime();
         var alarmMs=sentMs+(m.alarm_min||0)*60*1000;
-        if(alarmMs<_appStartTime)return false;
+        // アプリ起動前に既にno_replyだったものは除外（過去の履歴）
+        // アプリ起動後に期限切れになったもの、またはアプリ起動前5分以内に期限切れになったもの（スリープ中の救済）
+        if(alarmMs < _appStartTime - 5*60*1000)return false;
       }
       return true;
     }).forEach(function(m){
       seen.push(m.id);localStorage.setItem('wc_sa',JSON.stringify(seen));
+      // タイマーがあればクリア（二重発火防止）
+      if(alarmTimers[m.id]){clearTimeout(alarmTimers[m.id]);delete alarmTimers[m.id];}
       var n=nm[m.receiver_id]||'相手';
       showAlarm(n,m.alarm_min);
     });
@@ -923,8 +1019,10 @@ function showAlarm(name,min){
   // 継続時間後に停止
   var dur=sndSettings.alarmDur!==undefined?sndSettings.alarmDur:30;
   if(dur>0){setTimeout(function(){if(alarmInterval)clearTimeout(alarmInterval);},dur*1000);}
-  // プッシュ通知
-  if(Notification&&Notification.permission==='granted'){new Notification('🚨 未返信アラーム',{body:name+'さんから'+min+'分以内に返信がありません'});}
+  // ローカル通知（アプリ前面時）
+  if(Notification&&Notification.permission==='granted'){
+    new Notification('🚨 未返信アラーム',{body:name+'さんから'+min+'分以内に返信がありません'});
+  }
 }
 function closeAlarm(){document.getElementById('alarmOv').classList.remove('on');}
 
@@ -996,7 +1094,7 @@ function loadAvatar(){
 }
 
 // ポーリング（10秒）
-setInterval(function(){if(me){renderHome();renderRecv();}},10000);
+setInterval(function(){if(me){renderHome();renderRecv();}},5000);
 
 // iOS バックグラウンド復帰時に即ポーリング＋AudioContext再開
 document.addEventListener('visibilitychange',function(){
