@@ -418,16 +418,10 @@ function nowStr(){
   return d.toISOString().replace('T',' ').slice(0,19);
 }
 // UTC文字列をJSTに変換して表示用に整形
-function toJST(utcStr){
-  if(!utcStr)return '';
-  try{
-    var d=new Date(utcStr.replace(' ','T')+'Z');
-    // すでにJSTで保存されている場合はそのまま返す
-    // Supabaseはtimestamptz（UTC）で返すので変換が必要
-    var jst=new Date(d.getTime());
-    var pad=function(n){return n<10?'0'+n:n;};
-    return jst.getFullYear()+'-'+pad(jst.getMonth()+1)+'-'+pad(jst.getDate())+' '+pad(jst.getHours())+':'+pad(jst.getMinutes())+':'+pad(jst.getSeconds());
-  }catch(e){return utcStr;}
+function toJST(str){
+  // Supabaseはすでにローカル時刻で返すのでそのまま使う
+  if(!str)return '';
+  return str.replace('T',' ').slice(0,19);
 }
 function toJSTShort(utcStr){
   var s=toJST(utcStr);
