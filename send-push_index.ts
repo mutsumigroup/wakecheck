@@ -96,10 +96,31 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { message_id, title, body, sender_name } = await req.json()
+    const { message_id, title, body, sender_name, to_user_id, tag } = await req.json()
+
+    // to_user_id が指定された場合は直接そのユーザーにPush（返信通知・フォロー申請通知など）
+    if (to_user_id && !message_id) {
+      const { data: targetUser } = await supabase
+        .from('users')
+        .select('push_endpoint, push_p256dh, push_auth')
+        .eq('id', to_user_id)
+        .single()
+
+      if (!targetUser?.push_endpoint) {
+        return new Response(JSON.stringify({ error: 'no push subscription' }), { status: 200 })
+      }
+
+      const ok = await sendWebPush(
+        { endpoint: targetUser.push_endpoint, p256dh: targetUser.push_p256dh, auth: targetUser.push_auth },
+        { title: title || '🔔 WakeCheck', body: body || '通知があります', tag: tag || 'wc-notify', url: '/wakecheck/' }
+      )
+      return new Response(JSON.stringify({ success: ok }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      })
+    }
 
     if (!message_id) {
-      return new Response(JSON.stringify({ error: 'message_id required' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'message_id or to_user_id required' }), { status: 400 })
     }
 
     // メッセージ情報取得
