@@ -157,7 +157,19 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
           <span class="tmpl" onclick="setT(1)">案件確認</span>
           <span class="tmpl" onclick="setT(2)">出勤確認</span>
         </div>
-        <div class="f"><label>送信先</label><select id="sendTo"><option value="">選択してください</option></select></div>
+        <div class="f">
+          <label>送信先</label>
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <button id="sendTabPerson" onclick="setSendTab('person')" style="flex:1;padding:8px;background:#6c5ce7;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">👤 個人</button>
+            <button id="sendTabGroup" onclick="setSendTab('group')" style="flex:1;padding:8px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:13px;font-weight:600;cursor:pointer;">👥 グループ</button>
+          </div>
+          <div id="sendPersonSel">
+            <select id="sendTo" style="width:100%;background:#12121e;border:1px solid #252538;border-radius:10px;padding:11px 13px;color:#f0f0fa;font-size:14px;outline:none;"><option value="">選択してください</option></select>
+          </div>
+          <div id="sendGroupSel" style="display:none;">
+            <div id="sendGroupList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
         <div class="f"><label>メッセージ</label><textarea id="sendBody" placeholder="本日〇〇案件 起床確認です。返信お願い致します。"></textarea></div>
         <div class="f" style="margin-bottom:18px;"><label>返信待ち時間</label>
           <select id="sendAlarm">
@@ -612,7 +624,7 @@ function goTab(name){
     document.getElementById('t'+t).style.display=t===name?'block':'none';
     document.getElementById('nb'+t).classList.toggle('on',t===name);
   });
-  if(name==='Send'){updateSel();renderSchedules();renderSentHistory('all');}
+  if(name==='Send'){updateSel();renderSchedules();renderSentHistory('all');if(_sendTab==='group')renderSendGroupList();}
   if(name==='Home')renderHome();
   if(name==='Recv')renderRecv();
   if(name==='Follow'){renderFollowList();renderGroupList();renderFollowRequests();}
@@ -666,7 +678,67 @@ async function removeMember(userId, userName){
   }catch(e){toast('⚠ エラー: '+e.message);}
 }
 
-function goSendTo(uid){goTab('Send');setTimeout(function(){document.getElementById('sendTo').value=uid;},100);}
+function goSendTo(uid){
+  goTab('Send');
+  setTimeout(function(){
+    setSendTab('person');
+    document.getElementById('sendTo').value=uid;
+  },100);
+}
+
+// 送信タブ切り替え（個人/グループ）
+var _sendTab='person';
+var _selectedGroupId=null;
+
+function setSendTab(tab){
+  _sendTab=tab;
+  _selectedGroupId=null;
+  var personBtn=document.getElementById('sendTabPerson');
+  var groupBtn=document.getElementById('sendTabGroup');
+  var personSel=document.getElementById('sendPersonSel');
+  var groupSel=document.getElementById('sendGroupSel');
+  if(tab==='person'){
+    personBtn.style.cssText='flex:1;padding:8px;background:#6c5ce7;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;';
+    groupBtn.style.cssText='flex:1;padding:8px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:13px;font-weight:600;cursor:pointer;';
+    personSel.style.display='';
+    groupSel.style.display='none';
+  } else {
+    groupBtn.style.cssText='flex:1;padding:8px;background:#6c5ce7;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;';
+    personBtn.style.cssText='flex:1;padding:8px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:13px;font-weight:600;cursor:pointer;';
+    personSel.style.display='none';
+    groupSel.style.display='';
+    renderSendGroupList();
+  }
+}
+
+function renderSendGroupList(){
+  var el=document.getElementById('sendGroupList');
+  if(!el)return;
+  if(!_groups.length){
+    el.innerHTML='<div style="padding:12px;background:#1a1a28;border-radius:10px;font-size:13px;color:#5a5a80;text-align:center;">グループがありません<br><small>メンバータブからグループを作成してください</small></div>';
+    return;
+  }
+  el.innerHTML=_groups.map(function(g){
+    var memberNames=g.memberIds.map(function(id){
+      var u=follows.find(function(f){return f.id===id;});
+      return u?u.name:'?';
+    }).join('・');
+    var isSelected=_selectedGroupId===g.id;
+    return '<div onclick="selectSendGroup(''+g.id+'')" style="display:flex;align-items:center;gap:10px;padding:12px;background:'+(isSelected?'rgba(108,92,231,.2)':'#1a1a28')+';border:1px solid '+(isSelected?'#6c5ce7':'#252538')+';border-radius:10px;cursor:pointer;transition:.2s;">'
+      +'<div style="width:40px;height:40px;border-radius:50%;background:rgba(108,92,231,.15);border:1px solid '+(isSelected?'#6c5ce7':'#252538')+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👥</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:14px;font-weight:700;color:'+(isSelected?'#a29bfe':'#f0f0fa')+';">'+esc(g.name)+'</div>'
+        +'<div style="font-size:11px;color:#5a5a80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+g.memberIds.length+'人：'+memberNames+'</div>'
+      +'</div>'
+      +(isSelected?'<div style="color:#6c5ce7;font-size:18px;">✓</div>':'')
+    +'</div>';
+  }).join('');
+}
+
+function selectSendGroup(groupId){
+  _selectedGroupId=(_selectedGroupId===groupId)?null:groupId;
+  renderSendGroupList();
+}
 
 async function searchUser(){
   var query=document.getElementById('searchQuery')?document.getElementById('searchQuery').value.trim().toLowerCase():'';
@@ -1179,7 +1251,16 @@ function startScheduler(){
 }
 
 async function doSend(){
-  var to=document.getElementById('sendTo').value;
+  // タブに応じて送信先を決定
+  var to='';
+  var isGroupSend=false;
+  if(_sendTab==='group'){
+    if(!_selectedGroupId){toast('⚠ グループを選択してください');return;}
+    to='group:'+_selectedGroupId;
+    isGroupSend=true;
+  } else {
+    to=document.getElementById('sendTo').value;
+  }
   var body=document.getElementById('sendBody').value.trim();
   var alarm=parseInt(document.getElementById('sendAlarm').value)||10;
   var isSched=document.getElementById('schedToggle').checked;
@@ -1206,6 +1287,8 @@ async function doSend(){
     btn.disabled=false;btn.textContent='🚀 送信して監視開始';
     toast('✓ '+grp.name+'の'+sentCount+'人に送信しました');
     document.getElementById('sendBody').value='';
+    _selectedGroupId=null;
+    setSendTab('person');
     goTab('Home');renderSentHistory(_sentHistoryFilter);
     return;
   }
