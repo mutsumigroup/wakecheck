@@ -1355,8 +1355,9 @@ async function doQuickReply(msgId){
     await sPatch('messages',{status:'replied',replied_at:nowStr()},'?id=eq.'+msgId);
     toast('✓ 「確認しました」と返信しました');
     renderRecv();
-    // 送信者側のホーム表示も更新（ポーリングより早く反映）
     if(document.getElementById('tHome').style.display!=='none')renderHome();
+    // 送信者に返信通知を送る
+    notifySender(msgId,'✅ 起床確認済み',me.name+'さんが確認しました！');
   }catch(e){toast('⚠ エラー: '+e.message);}
 }
 
@@ -1368,7 +1369,32 @@ async function doReply(msgId){
     await sPatch('messages',{status:'replied',replied_at:nowStr()},'?id=eq.'+msgId);
     toast('✓ 返信しました');renderRecv();
     if(document.getElementById('tHome').style.display!=='none')renderHome();
+    // 送信者に返信通知を送る
+    notifySender(msgId,'✅ 返信が届きました',me.name+'さんから返信：'+body.slice(0,30)+(body.length>30?'…':''));
   }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// 送信者に通知を送る（Push + ローカル）
+async function notifySender(msgId, title, body){
+  try{
+    // メッセージの送信者IDを取得
+    var rows=await sGet('messages','?id=eq.'+msgId+'&select=sender_id');
+    if(!rows.length)return;
+    var senderId=rows[0].sender_id;
+    // 自分が送信者の場合はローカル通知のみ
+    if(senderId===me.id){
+      if(Notification&&Notification.permission==='granted'){
+        new Notification(title,{body:body,tag:'reply-'+msgId});
+      }
+      return;
+    }
+    // Edge FunctionでPush通知
+    await fetch(SURL+'/functions/v1/send-push',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SKEY},
+      body:JSON.stringify({to_user_id:senderId,title:title,body:body,tag:'reply-'+msgId})
+    });
+  }catch(e){console.log('notifySender error:',e);}
 }
 
 async function createInvite(){
