@@ -1269,6 +1269,44 @@ async function renderHome(){
       }
       return '<div class="mi '+m.status+'"><div class="mrow"><span class="mto">→ '+esc(nm[m.receiver_id]||'?')+'</span><span class="badge '+m.status+'">'+(bl[m.status]||m.status)+'</span></div><div class="mbody">'+esc(m.body)+'</div><div class="mmeta">'+toJSTShort(m.sent_at)+' · ⏱'+m.alarm_min+'分</div>'+repliedInfo+'</div>';
     }).join('');
+    // replied かつ未通知のものに返信通知音を鳴らす
+    var repliedSeen=JSON.parse(localStorage.getItem('wc_rep_seen')||'[]');
+    msgs.filter(function(m){
+      if(m.status!=='replied')return false;
+      if(repliedSeen.indexOf(m.id)>=0)return false;
+      // アプリ起動後に返信されたもの or 直近5分以内
+      if(m.replied_at){
+        var repMs=new Date(m.replied_at.replace(' ','T')).getTime();
+        if(repMs<_appStartTime-5*60*1000)return false;
+      }
+      return true;
+    }).forEach(function(m){
+      repliedSeen.push(m.id);localStorage.setItem('wc_rep_seen',JSON.stringify(repliedSeen));
+      // 返信通知音を鳴らす
+      playSound(sndSettings.recvType||'chime',sndSettings.recvVol!==undefined?sndSettings.recvVol:80);
+      // ローカル通知
+      var rName=nm[m.receiver_id]||'相手';
+      if(Notification&&Notification.permission==='granted'){
+        new Notification('✅ 返信が届きました',{
+          body:rName+'さんが確認しました！',
+          tag:'replied-'+m.id,
+          requireInteraction:false
+        });
+      }
+      // Service Worker経由でも通知（バックグラウンド時）
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistration('./sw.js').then(function(reg){
+          if(reg){reg.showNotification('✅ 返信が届きました',{
+            body:rName+'さんが確認しました！',
+            tag:'replied-'+m.id,
+            renotify:true
+          });}
+        }).catch(function(){});
+      }
+      // トースト通知
+      toast('✅ '+rName+'さんから返信が届きました！');
+    });
+
     // no_reply かつ未通知のものをアラーム
     // タイマーが止まっていてもポーリング復帰時に検知できる設計
     msgs.filter(function(m){
