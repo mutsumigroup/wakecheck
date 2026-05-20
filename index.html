@@ -724,7 +724,7 @@ function renderSendGroupList(){
       return u?u.name:'?';
     }).join('・');
     var isSelected=_selectedGroupId===g.id;
-    return '<div onclick="selectSendGroup(''+g.id+'')" style="display:flex;align-items:center;gap:10px;padding:12px;background:'+(isSelected?'rgba(108,92,231,.2)':'#1a1a28')+';border:1px solid '+(isSelected?'#6c5ce7':'#252538')+';border-radius:10px;cursor:pointer;transition:.2s;">'
+    return '<div onclick="selectSendGroup(\''+g.id+'\')\" style=\"display:flex;align-items:center;gap:10px;padding:12px;background:'+(isSelected?'rgba(108,92,231,.2)':'#1a1a28')+';border:1px solid '+(isSelected?'#6c5ce7':'#252538')+';border-radius:10px;cursor:pointer;transition:.2s;\">'
       +'<div style="width:40px;height:40px;border-radius:50%;background:rgba(108,92,231,.15);border:1px solid '+(isSelected?'#6c5ce7':'#252538')+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👥</div>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:14px;font-weight:700;color:'+(isSelected?'#a29bfe':'#f0f0fa')+';">'+esc(g.name)+'</div>'
