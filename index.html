@@ -642,8 +642,28 @@ function renderFollowList(){
   var el=document.getElementById('followList');
   if(!follows.length){el.innerHTML='<div class="empty" style="padding:20px;"><p>まだメンバーがいません</p></div>';return;}
   el.innerHTML=follows.map(function(u){
-    return '<div class="fi"><div class="fav">'+esc(u.name[0])+'</div><div style="flex:1;"><div class="fn">'+esc(u.name)+'</div><div class="fe">@'+esc(u.username||'?')+'</div></div><button onclick="goSendTo(\''+u.id+'\')" style="padding:6px 12px;background:rgba(108,92,231,.12);border:1px solid #6c5ce7;border-radius:8px;color:#a29bfe;font-size:12px;cursor:pointer;">送る</button></div>';
+    return '<div class="fi">'
+      +'<div class="fav">'+esc(u.name[0])+'</div>'
+      +'<div style="flex:1;"><div class="fn">'+esc(u.name)+'</div><div class="fe">@'+esc(u.username||'?')+'</div></div>'
+      +'<div style="display:flex;gap:6px;">'
+        +'<button onclick="goSendTo(\''+u.id+'\')" style="padding:6px 12px;background:rgba(108,92,231,.12);border:1px solid #6c5ce7;border-radius:8px;color:#a29bfe;font-size:12px;cursor:pointer;">送る</button>'
+        +'<button onclick="removeMember(\''+u.id+'\',\''+esc(u.name)+'\')" style="padding:6px 10px;background:transparent;border:1px solid rgba(225,112,85,.3);border-radius:8px;color:#e17055;font-size:12px;cursor:pointer;">🗑</button>'
+      +'</div>'
+    +'</div>';
   }).join('');
+}
+
+async function removeMember(userId, userName){
+  if(!confirm(userName+'さんをメンバーから削除しますか？\n（相手側のメンバーリストからも削除されます）'))return;
+  try{
+    // 双方向の接続を削除
+    await sDel('connections','?user_a=eq.'+me.id+'&user_b=eq.'+userId);
+    await sDel('connections','?user_a=eq.'+userId+'&user_b=eq.'+me.id);
+    await loadFollows();
+    renderFollowList();
+    renderGroupList();
+    toast('✓ '+userName+'さんをメンバーから削除しました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
 }
 
 function goSendTo(uid){goTab('Send');setTimeout(function(){document.getElementById('sendTo').value=uid;},100);}
