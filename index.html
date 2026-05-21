@@ -156,12 +156,15 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
   <div class="body">
     <!-- ホーム -->
     <div id="tHome">
-      <div class="stats" style="margin-top:4px;">
-        <div class="stat"><div class="sn" style="color:#a29bfe" id="stT">0</div><div class="sl">送信済み</div></div>
-        <div class="stat"><div class="sn" style="color:#00b894" id="stR">0</div><div class="sl">返信あり</div></div>
-        <div class="stat"><div class="sn" style="color:#e17055" id="stN">0</div><div class="sl">未返信🚨</div></div>
+      <div style="margin:12px 0 8px;padding:16px 20px;background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.3);border-radius:14px;">
+        <div style="font-size:13px;color:#a29bfe;font-weight:600;margin-bottom:6px;">⏱ 現在監視中</div>
+        <div style="font-size:48px;font-weight:900;color:#f0f0fa;line-height:1;" id="stW">0</div>
+        <div style="font-size:12px;color:#5a5a80;margin-top:4px;">人のメンバーを監視しています</div>
+        <div id="stR" style="display:none;"></div>
+        <div id="stN" style="display:none;"></div>
+        <div id="stT" style="display:none;"></div>
       </div>
-      <div class="sec">メンバー</div>
+      <div class="sec">監視中のメンバー</div>
       <div id="sentList"><div class="empty"><div class="ei">📭</div><p>まだメッセージを送っていません</p></div></div>
     </div>
     <!-- 送信 -->
@@ -181,7 +184,12 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
             <button id="sendTabGroup" onclick="setSendTab('group')" style="flex:1;padding:8px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:13px;font-weight:600;cursor:pointer;">👥 グループ</button>
           </div>
           <div id="sendPersonSel">
-            <select id="sendTo" style="width:100%;background:#12121e;border:1px solid #252538;border-radius:10px;padding:11px 13px;color:#f0f0fa;font-size:14px;outline:none;"><option value="">選択してください</option></select>
+            <!-- 選択済みタグ表示 -->
+            <div id="selectedTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:20px;margin-bottom:8px;"></div>
+            <!-- メンバー一覧チェックボックス -->
+            <div id="personCheckList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+            <!-- ドロップダウン互換用（非表示） -->
+            <select id="sendTo" style="display:none;"><option value="">選択してください</option></select>
           </div>
           <div id="sendGroupSel" style="display:none;">
             <div id="sendGroupList" style="display:flex;flex-direction:column;gap:8px;"></div>
@@ -679,7 +687,7 @@ function goTab(name){
     if(tel) tel.style.display=t===name?'block':'none';
     if(nel) nel.classList.toggle('on',t===name);
   });
-  if(name==='Send'){updateSel();renderSchedules();renderSentHistory('all');if(_sendTab==='group')renderSendGroupList();}
+  if(name==='Send'){updateSel();renderPersonCheckList();renderPersonTags();renderSchedules();renderSentHistory('all');if(_sendTab==='group')renderSendGroupList();}
   if(name==='Home')renderHome();
   if(name==='Recv')renderRecv();
   if(name==='Follow'){renderFollowList();renderGroupList();renderFollowRequests();}
@@ -694,6 +702,60 @@ async function loadFollows(){
     var users=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name,username,email');
     follows=users;updateSel();renderGroupList();
   }catch(e){}
+}
+
+// 複数選択されたメンバーID
+var _selectedPersonIds = [];
+
+function renderPersonCheckList(){
+  var el = document.getElementById('personCheckList');
+  if(!el) return;
+  if(!follows.length){
+    el.innerHTML='<p style="font-size:13px;color:#5a5a80;padding:8px 0;">メンバーがいません</p>';
+    return;
+  }
+  el.innerHTML = follows.map(function(u){
+    var checked = _selectedPersonIds.indexOf(u.id) >= 0;
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:'+(checked?'rgba(108,92,231,.12)':'#0a0a12')+';border:1px solid '+(checked?'#6c5ce7':'#252538')+';border-radius:10px;cursor:pointer;transition:.15s;">'
+      +'<input type="checkbox" value="'+u.id+'" '+(checked?'checked':'')+' onchange="togglePersonSel(this)" style="width:18px;height:18px;accent-color:#6c5ce7;flex-shrink:0;">'
+      +'<div style="width:32px;height:32px;border-radius:50%;background:rgba(108,92,231,.15);border:1px solid #6c5ce7;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#a29bfe;flex-shrink:0;">'+esc(u.name[0])+'</div>'
+      +'<div style="font-size:14px;font-weight:600;color:#f0f0fa;">'+esc(u.name)+'</div>'
+      +'</label>';
+  }).join('');
+}
+
+function togglePersonSel(cb){
+  var uid = cb.value;
+  if(cb.checked){
+    if(_selectedPersonIds.indexOf(uid)<0) _selectedPersonIds.push(uid);
+  } else {
+    _selectedPersonIds = _selectedPersonIds.filter(function(id){return id!==uid;});
+  }
+  renderPersonTags();
+  renderPersonCheckList();
+}
+
+function renderPersonTags(){
+  var el = document.getElementById('selectedTags');
+  if(!el) return;
+  if(!_selectedPersonIds.length){
+    el.innerHTML='<span style="font-size:12px;color:#5a5a80;">送信先を選んでください</span>';
+    return;
+  }
+  el.innerHTML = _selectedPersonIds.map(function(uid){
+    var u = follows.find(function(f){return f.id===uid;});
+    var name = u ? u.name : '?';
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#6c5ce7;color:#fff;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:700;">'
+      +esc(name)
+      +'<span onclick="removePersonSel(\''+uid+'\')" style="cursor:pointer;opacity:.8;font-size:14px;line-height:1;">×</span>'
+      +'</span>';
+  }).join('');
+}
+
+function removePersonSel(uid){
+  _selectedPersonIds = _selectedPersonIds.filter(function(id){return id!==uid;});
+  renderPersonTags();
+  renderPersonCheckList();
 }
 
 function updateSel(){
@@ -1308,18 +1370,50 @@ async function doSend(){
   // タブに応じて送信先を決定
   var to='';
   var isGroupSend=false;
+  var isMultiPerson=false;
   if(_sendTab==='group'){
     if(!_selectedGroupId){toast('⚠ グループを選択してください');return;}
     to='group:'+_selectedGroupId;
     isGroupSend=true;
   } else {
-    to=document.getElementById('sendTo').value;
+    // 個人タブ：複数選択対応
+    if(!_selectedPersonIds.length){toast('⚠ 送信先を選択してください');return;}
+    if(_selectedPersonIds.length===1){
+      to=_selectedPersonIds[0];
+    } else {
+      to='multi';
+      isMultiPerson=true;
+    }
   }
   var body=document.getElementById('sendBody').value.trim();
   var alarm=parseInt(document.getElementById('sendAlarm').value)||10;
   var isSched=document.getElementById('schedToggle').checked;
   if(!to){toast('⚠ 送信先を選択してください');return;}
   if(!body){toast('⚠ メッセージを入力してください');return;}
+
+  // 複数個人送信
+  if(isMultiPerson){
+    var btn=document.getElementById('sendBtn');btn.disabled=true;btn.textContent='送信中...';
+    var sentCount=0;
+    for(var pi=0;pi<_selectedPersonIds.length;pi++){
+      var pid=_selectedPersonIds[pi];
+      try{
+        var msgId=uid();var sentAt=nowStr();
+        await sPost('messages',{id:msgId,sender_id:me.id,receiver_id:pid,body:body,status:'waiting',alarm_min:alarm,sent_at:sentAt});
+        startAlarm(msgId,alarm,pid,sentAt);
+        callSendPush(msgId,'waiting');
+        sentCount++;
+      }catch(e){}
+    }
+    btn.disabled=false;btn.textContent='🚀 送信して監視開始';
+    document.getElementById('sendBody').value='';
+    _selectedPersonIds=[];
+    renderPersonTags();
+    renderPersonCheckList();
+    toast('✓ '+sentCount+'人に送信しました');
+    goTab('Home');renderSentHistory(_sentHistoryFilter);
+    return;
+  }
 
   // グループ送信
   if(to.indexOf('group:')===0){
@@ -1366,6 +1460,9 @@ async function doSend(){
       var msgId=uid();
       await sPost('messages',{id:msgId,sender_id:me.id,receiver_id:to,body:body,alarm_min:alarm,status:'waiting',sent_at:nowStr()});
       document.getElementById('sendBody').value='';
+      _selectedPersonIds=[];
+      renderPersonTags();
+      renderPersonCheckList();
       toast('✓ 送信しました。'+alarm+'分間監視します');
       startAlarm(msgId,alarm,to,nowStr());
       // 受信者にPush通知を送信
@@ -1411,36 +1508,53 @@ function startAlarm(msgId,alarmMin,receiverId,sentAt){
 async function renderHome(){
   try{
     var msgs=await sGet('messages','?sender_id=eq.'+me.id+'&order=sent_at.desc');
+    var waiting = msgs.filter(function(m){return m.status==='waiting';});
+    var noReply = msgs.filter(function(m){return m.status==='no_reply';});
     document.getElementById('stT').textContent=msgs.length;
     document.getElementById('stR').textContent=msgs.filter(function(m){return m.status==='replied';}).length;
-    document.getElementById('stN').textContent=msgs.filter(function(m){return m.status==='no_reply';}).length;
+    document.getElementById('stN').textContent=noReply.length;
+    document.getElementById('stW').textContent=waiting.length;
+
+
+
     var el=document.getElementById('sentList');
     if(!msgs.length){el.innerHTML='<div class="empty"><div class="ei">📭</div><p>まだメッセージを送っていません</p></div>';return;}
     var ids=[...new Set(msgs.map(function(m){return m.receiver_id;}))];
     var nm={};
     if(ids.length){var u=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');u.forEach(function(x){nm[x.id]=x.name;});}
-    // メンバーごとに最新メッセージのみまとめて表示（LINE風）
+
+    // 監視中（waiting）のメンバーのみ抽出
+    var waitingMsgs = msgs.filter(function(m){return m.status==='waiting';});
+    if(!waitingMsgs.length){
+      el.innerHTML='<div class="empty"><div class="ei">😴</div><p>現在監視中のメンバーはいません</p></div>';
+    } else {
+    // メンバーごとにまとめる
     var memberMap={};
-    msgs.forEach(function(m){
-      if(!memberMap[m.receiver_id]){
-        memberMap[m.receiver_id]={latest:m,count:0,unread:0};
-      }
-      memberMap[m.receiver_id].count++;
-      if(m.status==='waiting'||m.status==='no_reply') memberMap[m.receiver_id].unread++;
+    waitingMsgs.forEach(function(m){
+      if(!memberMap[m.receiver_id]) memberMap[m.receiver_id]={latest:m,waiting:0};
+      memberMap[m.receiver_id].waiting++;
     });
+    var sorted = Object.keys(memberMap);
 
     var statusIcon={waiting:'⏱',replied:'✅',no_reply:'🚨'};
     var statusColor={waiting:'#fdcb6e',replied:'#00b894',no_reply:'#e17055'};
 
-    el.innerHTML=Object.keys(memberMap).map(function(uid){
+    el.innerHTML = sorted.map(function(uid){
       var s=memberMap[uid];
       var m=s.latest;
       var name=nm[uid]||'?';
       var icon=statusIcon[m.status]||'';
       var color=statusColor[m.status]||'#5a5a80';
-      var timeStr=toJSTShort(m.sent_at).slice(5,16); // MM-DD HH:MM
-      var unreadBadge=s.unread>0?'<div style="min-width:20px;height:20px;border-radius:10px;background:#e17055;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;">'+s.unread+'</div>':'';
-      return '<div data-uid="'+uid+'" data-name="'+esc(name)+'" data-dir="sent" onclick="openHistModalFromEl(this)" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #1a1a28;cursor:pointer;">'
+      var timeStr=toJSTShort(m.sent_at).slice(5,16);
+      // バッジ：監視中は青、未返信は赤
+      var badge='';
+      if(s.waiting>0) badge='<div style="min-width:20px;height:20px;border-radius:10px;background:#a29bfe;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;">'+s.waiting+'</div>';
+      else if(s.noReply>0) badge='<div style="min-width:20px;height:20px;border-radius:10px;background:#e17055;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;">'+s.noReply+'</div>';
+
+      // 監視中のメンバーは背景を強調
+      var bgStyle = s.waiting>0 ? 'background:rgba(108,92,231,.06);' : s.noReply>0 ? 'background:rgba(225,112,85,.04);' : '';
+
+      return '<div data-uid="'+uid+'" data-name="'+esc(name)+'" data-dir="sent" onclick="openHistModalFromEl(this)" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #1a1a28;cursor:pointer;'+bgStyle+'">'
         +'<div style="width:46px;height:46px;border-radius:50%;background:rgba(108,92,231,.15);border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#a29bfe;flex-shrink:0;">'+esc(name[0])+'</div>'
         +'<div style="flex:1;min-width:0;">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
@@ -1449,14 +1563,12 @@ async function renderHome(){
           +'</div>'
           +'<div style="display:flex;justify-content:space-between;align-items:center;">'
             +'<div style="font-size:13px;color:#5a5a80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;">'+esc(m.body)+'</div>'
-            +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-              +'<span style="font-size:13px;">'+icon+'</span>'
-              +unreadBadge
-            +'</div>'
+            +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span style="font-size:13px;">'+icon+'</span>'+badge+'</div>'
           +'</div>'
         +'</div>'
       +'</div>';
     }).join('');
+    } // end if waitingMsgs.length
     // replied かつ未通知のものに返信通知音を鳴らす
     var repliedSeen=JSON.parse(localStorage.getItem('wc_rep_seen')||'[]');
     msgs.filter(function(m){
