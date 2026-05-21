@@ -294,6 +294,46 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
       </div>
     </div>
     <!-- 設定 -->
+    <!-- ダッシュボードタブ -->
+    <div id="tDash" style="display:none;">
+      <div class="sec" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>📊 チーム状況ダッシュボード</span>
+        <button onclick="exportCSV()" style="padding:5px 12px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#a29bfe;font-size:12px;cursor:pointer;">📥 CSV出力</button>
+      </div>
+      <!-- 日付フィルター -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="setDashFilter('today')" id="dfToday" style="padding:7px 14px;background:#6c5ce7;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">今日</button>
+        <button onclick="setDashFilter('week')" id="dfWeek" style="padding:7px 14px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:12px;cursor:pointer;">今週</button>
+        <button onclick="setDashFilter('month')" id="dfMonth" style="padding:7px 14px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:12px;cursor:pointer;">今月</button>
+        <button onclick="setDashFilter('all')" id="dfAll" style="padding:7px 14px;background:#1a1a28;border:1px solid #252538;border-radius:8px;color:#5a5a80;font-size:12px;cursor:pointer;">全期間</button>
+      </div>
+      <!-- 集計カード -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+        <div style="background:#12121e;border:1px solid #252538;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#a29bfe;" id="dashTotal">0</div>
+          <div style="font-size:11px;color:#5a5a80;margin-top:2px;">総送信数</div>
+        </div>
+        <div style="background:#12121e;border:1px solid #252538;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#00b894;" id="dashReplied">0</div>
+          <div style="font-size:11px;color:#5a5a80;margin-top:2px;">確認済み</div>
+        </div>
+        <div style="background:#12121e;border:1px solid #252538;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#e17055;" id="dashNoReply">0</div>
+          <div style="font-size:11px;color:#5a5a80;margin-top:2px;">未返信</div>
+        </div>
+      </div>
+      <!-- チームメンバー別状況 -->
+      <div class="sec">👥 メンバー別状況</div>
+      <div class="icard" style="padding:12px;">
+        <div id="dashMemberList"><div class="empty"><p>データがありません</p></div></div>
+      </div>
+      <!-- 送信履歴詳細 -->
+      <div class="sec" style="margin-top:8px;">📋 送信履歴詳細</div>
+      <div class="icard" style="padding:12px;">
+        <div id="dashHistoryList"><div class="empty"><p>データがありません</p></div></div>
+      </div>
+    </div>
+
     <div id="tProfile" style="display:none;">
       <div class="sec" style="margin-top:4px;">プロフィール編集</div>
       <div class="icard">
@@ -384,6 +424,15 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
         <button onclick="saveSoundSettings()" class="btn btn-p" style="margin-top:4px;">💾 サウンド設定を保存</button>
       </div>
 
+      <!-- テンプレート管理 -->
+      <div class="sec" style="margin-top:16px;">📝 メッセージテンプレート</div>
+      <div class="icard">
+        <div style="font-size:12px;color:#5a5a80;margin-bottom:10px;">送信画面のテンプレートをカスタマイズ</div>
+        <div id="tmplEditList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <button onclick="addTmpl()" style="width:100%;padding:10px;background:transparent;border:1px dashed #252538;border-radius:10px;color:#5a5a80;font-size:13px;cursor:pointer;">＋ テンプレートを追加</button>
+        <button onclick="saveTmpls()" class="btn btn-p" style="margin-top:8px;width:100%;">💾 テンプレートを保存</button>
+      </div>
+
       <!-- Web Push通知設定 -->
       <div class="sec" style="margin-top:16px;">📲 バックグラウンド通知（Web Push）</div>
       <div class="icard">
@@ -393,6 +442,33 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
         <button onclick="testWebPush()" class="btn btn-g" style="width:100%;">▶ テスト通知を送る</button>
         <div style="margin-top:10px;font-size:11px;color:#5a5a80;">
           ⚠ iPhoneの場合：Safariで開き「ホーム画面に追加」してから有効にしてください。
+        </div>
+      </div>
+
+      <!-- エスカレーション設定 -->
+      <div class="sec" style="margin-top:16px;">🔄 自動エスカレーション</div>
+      <div class="icard">
+        <div style="font-size:12px;color:#8888aa;margin-bottom:10px;">未返信時に自動で代替メンバーへ通知します</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:13px;font-weight:600;">エスカレーション</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <span style="font-size:12px;color:#5a5a80;">OFF</span>
+            <input type="checkbox" id="escEnabled" onchange="toggleEsc()" style="width:18px;height:18px;accent-color:#6c5ce7;">
+            <span style="font-size:12px;color:#5a5a80;">ON</span>
+          </label>
+        </div>
+        <div id="escSettings" style="display:none;">
+          <div class="f" style="margin-bottom:10px;">
+            <label>未返信から何分後に通知</label>
+            <select id="escDelay" onchange="updateEsc()" style="width:100%;background:#0a0a12;border:1px solid #252538;border-radius:8px;padding:10px;color:#f0f0fa;font-size:14px;">
+              <option value="5">5分後</option>
+              <option value="10">10分後</option>
+              <option value="15">15分後</option>
+              <option value="30">30分後</option>
+            </select>
+          </div>
+          <div style="font-size:12px;color:#5a5a80;margin-bottom:8px;">通知先メンバー（複数選択可）</div>
+          <div id="escTargetList" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
       </div>
 
@@ -407,6 +483,7 @@ body{background:#0a0a12;color:#f0f0fa;font-family:-apple-system,sans-serif;min-h
     <button class="nb" id="nbSend" onclick="goTab('Send')"><div class="ni">📤</div>送信</button>
     <button class="nb" id="nbRecv" onclick="goTab('Recv')"><div class="ni">📬</div>受信</button>
     <button class="nb" id="nbFollow" onclick="goTab('Follow')"><div class="ni">👥</div>メンバー</button>
+    <button class="nb" id="nbDash" onclick="goTab('Dash')"><div class="ni">📊</div>管理</button>
     <button class="nb" id="nbProfile" onclick="goTab('Profile')"><div class="ni">⚙️</div>設定</button>
   </div>
 </div>
@@ -628,7 +705,8 @@ function goTab(name){
   if(name==='Home')renderHome();
   if(name==='Recv')renderRecv();
   if(name==='Follow'){renderFollowList();renderGroupList();renderFollowRequests();}
-  if(name==='Profile')updatePushStatus();
+  if(name==='Dash'){renderDashboard();}
+  if(name==='Profile'){updatePushStatus();renderTmplEdit();renderEscSettings();}
   if(name==='Profile'){loadProfileForm();loadSoundSettings();}
 }
 
@@ -1339,6 +1417,9 @@ function startAlarm(msgId,alarmMin,receiverId,sentAt){
         await sPatch('messages',{status:'no_reply'},'?id=eq.'+msgId);
         // 送信者にアラームPush通知
         callSendPush(msgId,'no_reply');
+        // エスカレーション実行
+        var _escBody=rows.length&&rows[0].body?rows[0].body:'';
+        runEscalation(msgId,receiverId,_escBody,alarmMin);
         renderHome(); // ← ここで seen チェックを経由してアラームが鳴る
       } else if(rows.length&&rows[0].status==='replied'){
         delete alarmTimers[msgId];
@@ -1437,6 +1518,273 @@ async function renderHome(){
   }catch(e){}
 }
 
+// ===== ダッシュボード =====
+var _dashFilter = 'today';
+
+function setDashFilter(f){
+  _dashFilter = f;
+  ['today','week','month','all'].forEach(function(k){
+    var btn = document.getElementById('df'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(!btn) return;
+    btn.style.background = k===f ? '#6c5ce7' : '#1a1a28';
+    btn.style.color = k===f ? '#fff' : '#5a5a80';
+    btn.style.border = k===f ? 'none' : '1px solid #252538';
+  });
+  renderDashboard();
+}
+
+async function renderDashboard(){
+  try{
+    var now = new Date();
+    var fromDate = '';
+    if(_dashFilter==='today'){
+      fromDate = now.toISOString().slice(0,10);
+    } else if(_dashFilter==='week'){
+      var d = new Date(now); d.setDate(d.getDate()-7);
+      fromDate = d.toISOString().slice(0,10);
+    } else if(_dashFilter==='month'){
+      var d = new Date(now); d.setDate(d.getDate()-30);
+      fromDate = d.toISOString().slice(0,10);
+    }
+
+    var query = '?sender_id=eq.'+me.id+'&order=sent_at.desc';
+    if(fromDate) query += '&sent_at=gte.'+fromDate;
+    var msgs = await sGet('messages', query);
+
+    // 集計
+    var total = msgs.length;
+    var replied = msgs.filter(function(m){return m.status==='replied';}).length;
+    var noReply = msgs.filter(function(m){return m.status==='no_reply';}).length;
+    document.getElementById('dashTotal').textContent = total;
+    document.getElementById('dashReplied').textContent = replied;
+    document.getElementById('dashNoReply').textContent = noReply;
+
+    if(!msgs.length){
+      document.getElementById('dashMemberList').innerHTML='<div class="empty"><p>データがありません</p></div>';
+      document.getElementById('dashHistoryList').innerHTML='<div class="empty"><p>データがありません</p></div>';
+      return;
+    }
+
+    // メンバー情報取得
+    var ids=[...new Set(msgs.map(function(m){return m.receiver_id;}))];
+    var users = await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');
+    var nm={}; users.forEach(function(u){nm[u.id]=u.name;});
+
+    // メンバー別集計
+    var memberStats = {};
+    msgs.forEach(function(m){
+      if(!memberStats[m.receiver_id]) memberStats[m.receiver_id]={name:nm[m.receiver_id]||'?',total:0,replied:0,noReply:0,waiting:0,lastReply:''};
+      var s = memberStats[m.receiver_id];
+      s.total++;
+      if(m.status==='replied'){s.replied++;if(m.replied_at>s.lastReply)s.lastReply=m.replied_at;}
+      else if(m.status==='no_reply') s.noReply++;
+      else s.waiting++;
+    });
+
+    var memberEl = document.getElementById('dashMemberList');
+    memberEl.innerHTML = Object.values(memberStats).sort(function(a,b){return b.total-a.total;}).map(function(s){
+      var rate = s.total>0 ? Math.round(s.replied/s.total*100) : 0;
+      var rateColor = rate>=80?'#00b894':rate>=50?'#fdcb6e':'#e17055';
+      return '<div style="padding:12px;background:#1a1a28;border-radius:10px;margin-bottom:8px;">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+          +'<div style="width:36px;height:36px;border-radius:50%;background:#252538;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#a29bfe;">'+esc(s.name[0])+'</div>'
+          +'<div style="flex:1;"><div style="font-weight:700;font-size:14px;">'+esc(s.name)+'</div>'
+            +(s.lastReply?'<div style="font-size:11px;color:#5a5a80;">最終確認：'+toJSTShort(s.lastReply)+'</div>':'')
+          +'</div>'
+          +'<div style="font-size:20px;font-weight:800;color:'+rateColor+';">'+rate+'%</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:0;background:#0a0a12;border-radius:8px;overflow:hidden;height:6px;">'
+          +'<div style="width:'+rate+'%;background:'+rateColor+';transition:.3s;"></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;">'
+          +'<span style="color:#5a5a80;">送信 <strong style="color:#f0f0fa;">'+s.total+'</strong></span>'
+          +'<span style="color:#5a5a80;">確認 <strong style="color:#00b894;">'+s.replied+'</strong></span>'
+          +'<span style="color:#5a5a80;">未返信 <strong style="color:#e17055;">'+s.noReply+'</strong></span>'
+          +(s.waiting?'<span style="color:#5a5a80;">監視中 <strong style="color:#fdcb6e;">'+s.waiting+'</strong></span>':'')
+        +'</div>'
+      +'</div>';
+    }).join('');
+
+    // 履歴詳細
+    var histEl = document.getElementById('dashHistoryList');
+    histEl.innerHTML = msgs.slice(0,30).map(function(m){
+      var statusLabel={waiting:'⏱ 監視中',replied:'✅ 確認済',no_reply:'🚨 未返信'};
+      var statusColor={waiting:'#fdcb6e',replied:'#00b894',no_reply:'#e17055'};
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #1a1a28;">'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:13px;font-weight:600;">→ '+esc(nm[m.receiver_id]||'?')+'</div>'
+          +'<div style="font-size:11px;color:#5a5a80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.body)+'</div>'
+          +'<div style="font-size:10px;color:#5a5a80;">'+toJSTShort(m.sent_at)+'</div>'
+        +'</div>'
+        +'<span style="font-size:11px;font-weight:700;color:'+(statusColor[m.status]||'#5a5a80')+';">'+(statusLabel[m.status]||m.status)+'</span>'
+      +'</div>';
+    }).join('');
+  }catch(e){console.log('dashboard error:',e);}
+}
+
+// ===== CSV出力 =====
+async function exportCSV(){
+  try{
+    toast('CSV出力中...');
+    var msgs = await sGet('messages','?sender_id=eq.'+me.id+'&order=sent_at.desc');
+    if(!msgs.length){toast('⚠ データがありません');return;}
+    var ids=[...new Set(msgs.map(function(m){return m.receiver_id;}))];
+    var users = await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name');
+    var nm={}; users.forEach(function(u){nm[u.id]=u.name;});
+
+    var rows=[['送信日時','宛先','メッセージ','返信待ち時間(分)','ステータス','確認日時']];
+    msgs.forEach(function(m){
+      var status={waiting:'監視中',replied:'確認済み',no_reply:'未返信'}[m.status]||m.status;
+      rows.push([
+        toJSTShort(m.sent_at),
+        nm[m.receiver_id]||'?',
+        '"'+( m.body||'').replace(/"/g,'""')+'"',
+        m.alarm_min,
+        status,
+        m.replied_at?toJSTShort(m.replied_at):''
+      ]);
+    });
+
+    var csv = rows.map(function(r){return r.join(',');}).join('\n');
+
+    var bom = '\uFEFF'; // Excel用BOM（文字列として）
+    var blob = new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href=url; a.download='wakecheck_'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ CSVをダウンロードしました');
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// ===== テンプレート管理 =====
+var _userTmpls = JSON.parse(localStorage.getItem('wc_tmpls')||'null') || [...TMPLS];
+
+function renderTmplEdit(){
+  var el = document.getElementById('tmplEditList');
+  if(!el) return;
+  el.innerHTML = _userTmpls.map(function(t,i){
+    return '<div style="display:flex;gap:8px;align-items:center;">'
+      +'<textarea style="flex:1;background:#0a0a12;border:1px solid #252538;border-radius:8px;padding:8px;color:#f0f0fa;font-size:13px;resize:vertical;min-height:52px;" id="tmpl_'+i+'">'+esc(t)+'</textarea>'
+      +'<button onclick="removeTmpl('+i+')" style="padding:6px 8px;background:transparent;border:1px solid rgba(225,112,85,.3);border-radius:8px;color:#e17055;font-size:12px;cursor:pointer;flex-shrink:0;">🗑</button>'
+    +'</div>';
+  }).join('');
+}
+
+function addTmpl(){
+  _userTmpls.push('');
+  renderTmplEdit();
+}
+
+function removeTmpl(i){
+  _userTmpls.splice(i,1);
+  renderTmplEdit();
+}
+
+function saveTmpls(){
+  var els = document.querySelectorAll('[id^="tmpl_"]');
+  _userTmpls = Array.from(els).map(function(el){return el.value.trim();}).filter(Boolean);
+  localStorage.setItem('wc_tmpls', JSON.stringify(_userTmpls));
+  // 送信画面のテンプレートボタンを更新
+  renderTmplButtons();
+  toast('✅ テンプレートを保存しました');
+}
+
+function renderTmplButtons(){
+  var _tmplEl = document.querySelector('.tmpl');
+  var container = _tmplEl ? _tmplEl.parentElement : null;
+  if(!container) return;
+  container.innerHTML = _userTmpls.map(function(t,i){
+    return '<span class="tmpl" onclick="setT('+i+')" title="'+esc(t)+'">'+esc(t.length>8?t.slice(0,8)+'…':t)+'</span>';
+  }).join(' ');
+}
+
+function setT(i){
+  document.getElementById('sendBody').value = _userTmpls[i]||'';
+}
+
+// ===== 自動エスカレーション =====
+// エスカレーション設定：localStorage管理
+var _escalation = JSON.parse(localStorage.getItem('wc_esc')||'{"enabled":false,"delay":5,"targets":[]}');
+
+function saveEscalation(){
+  localStorage.setItem('wc_esc', JSON.stringify(_escalation));
+}
+
+// エスカレーション実行（startAlarmから呼ばれる）
+async function runEscalation(originalMsgId, originalReceiverId, body, alarmMin){
+  if(!_escalation.enabled) return;
+  if(!_escalation.targets||!_escalation.targets.length) return;
+  // 元の受信者を除いたエスカレーション対象
+  var targets = _escalation.targets.filter(function(id){return id!==originalReceiverId;});
+  if(!targets.length) return;
+
+  var delay = (_escalation.delay||5)*60*1000;
+  setTimeout(async function(){
+    // 元メッセージがまだno_replyかチェック
+    try{
+      var rows = await sGet('messages','?id=eq.'+originalMsgId+'&select=status');
+      if(!rows.length||rows[0].status!=='no_reply') return; // 返信があれば不要
+    }catch(e){return;}
+
+    // エスカレーション先に送信
+    for(var i=0;i<targets.length;i++){
+      try{
+        var eid = uid();
+        var sentAt = nowStr();
+        await sPost('messages',{
+          id:eid, sender_id:me.id, receiver_id:targets[i],
+          body:'【代替出勤依頼】'+body,
+          status:'waiting', alarm_min:alarmMin, sent_at:sentAt
+        });
+        startAlarm(eid, alarmMin, targets[i], sentAt);
+        callSendPush(eid,'waiting');
+        toast('🔄 エスカレーション：代替要員に通知しました');
+      }catch(e){}
+    }
+  }, delay);
+}
+
+function toggleEsc(){
+  _escalation.enabled = document.getElementById('escEnabled').checked;
+  document.getElementById('escSettings').style.display = _escalation.enabled ? '' : 'none';
+  saveEscalation();
+}
+
+function updateEsc(){
+  _escalation.delay = parseInt(document.getElementById('escDelay').value)||5;
+  saveEscalation();
+}
+
+function renderEscSettings(){
+  var cb = document.getElementById('escEnabled');
+  if(cb) cb.checked = _escalation.enabled;
+  var settings = document.getElementById('escSettings');
+  if(settings) settings.style.display = _escalation.enabled ? '' : 'none';
+  var delay = document.getElementById('escDelay');
+  if(delay) delay.value = _escalation.delay||5;
+  // メンバーリスト
+  var el = document.getElementById('escTargetList');
+  if(!el) return;
+  if(!follows.length){el.innerHTML='<p style="font-size:12px;color:#5a5a80;">先にメンバーを追加してください</p>';return;}
+  el.innerHTML = follows.map(function(u){
+    var checked = _escalation.targets && _escalation.targets.indexOf(u.id)>=0;
+    return '<label style="display:flex;align-items:center;gap:10px;padding:8px;background:#0a0a12;border-radius:8px;cursor:pointer;">'
+      +'<input type="checkbox" value="'+u.id+'" '+(checked?'checked':'')
+      +' onchange="updateEscTargets()" style="width:16px;height:16px;accent-color:#6c5ce7;">'
+      +'<div style="font-size:13px;font-weight:600;">'+esc(u.name)+'</div>'
+      +'</label>';
+  }).join('');
+}
+
+function updateEscTargets(){
+  var cbs = document.querySelectorAll('#escTargetList input[type=checkbox]:checked');
+  _escalation.targets = Array.from(cbs).map(function(cb){return cb.value;});
+  saveEscalation();
+}
+
+// 受信音重複防止
 // 受信済みIDを記録（受信音重複防止）
 var _recvSeen=JSON.parse(localStorage.getItem('wc_rs')||'[]');
 
