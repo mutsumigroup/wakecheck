@@ -736,19 +736,17 @@ async function doReg(){
   var name=document.getElementById('rName').value.trim();
   var uname=document.getElementById('rUser').value.trim().toLowerCase();
   var email=document.getElementById('rEmail').value.trim().toLowerCase();
-  var phone=document.getElementById('rPhone').value.trim();
   var pw=document.getElementById('rPw').value;
   var invite=document.getElementById('rInvite').value.trim();
   if(!name||!uname||!email||!pw){toast('⚠ 必須項目を入力してください');return;}
   if(pw.length<6){toast('⚠ パスワードは6文字以上');return;}
+  var role = _selectedRole || '';
+  if(!role){toast('⚠ 役割を選択してください');return;}
   try{
     var ex=await sGet('users','?email=eq.'+encodeURIComponent(email));
     if(ex.length){toast('⚠ このメールは登録済みです');return;}
     var newId=uid();
-    var selectedRole = document.querySelector('input[name="role"]:checked');
-    var role = selectedRole ? selectedRole.value : (document.getElementById('roleManagerBtn') && document.getElementById('roleManagerBtn').getAttribute('data-selected')==='1' ? 'manager' : document.getElementById('roleMemberBtn') && document.getElementById('roleMemberBtn').getAttribute('data-selected')==='1' ? 'member' : '');
-    if(!role){toast('⚠ 役割を選択してください');return;}
-    await sPost('users',{id:newId,name:name,username:uname,email:email,phone:phone,password:hashPw(pw),role:role,created:nowStr()});
+    await sPost('users',{id:newId,name:name,username:uname,email:email,password:hashPw(pw),role:role,created:nowStr()});
     if(invite){
       var inv=await sGet('invites','?code=eq.'+invite+'&used=eq.0');
       if(inv.length){
