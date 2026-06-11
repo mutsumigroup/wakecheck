@@ -83,9 +83,9 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
 .cal-views{display:flex;gap:4px;padding:0 12px 10px;}
 .cal-view{flex:1;padding:7px;text-align:center;font-size:11px;font-weight:700;border-radius:8px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;transition:.2s;}
 .cal-view.on{background:var(--accent);border-color:var(--accent);color:#fff;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 12px 12px;}
-.cal-day-label{text-align:center;font-size:10px;color:var(--muted);padding:4px 0;}
-.cal-day{text-align:center;padding:8px 2px;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:.2s;position:relative;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:40px;gap:2px;padding:0 12px 12px;}
+.cal-day-label{text-align:center;font-size:10px;color:var(--muted);padding:4px 0;height:auto!important;}
+.cal-day{text-align:center;padding:0;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:.2s;position:relative;display:flex;align-items:center;justify-content:center;height:40px;}
 .cal-day:hover{background:var(--navy3);}
 .cal-day.today{background:rgba(59,130,246,.15);color:var(--accent2);font-weight:700;}
 .cal-day.selected{background:var(--accent);color:#fff;font-weight:700;}
@@ -796,52 +796,62 @@ async function reportDeparted(planId){
 async function loadChatList(){
   var el=document.getElementById('chatList');
   try{
-    // 自分が関わったメッセージの相手を取得
-    var sent=await sGet('messages','?sender_id=eq.'+me.id+'&order=sent_at.desc&select=receiver_id,body,sent_at,msg_type');
-    var recv=await sGet('messages','?receiver_id=eq.'+me.id+'&order=sent_at.desc&select=sender_id,body,sent_at,status,msg_type');
-
+    if(!follows.length){
+      el.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">まだメンバーがいません<br>設定からメンバーを追加してください</div></div>';
+      return;
+    }
     var partners={};
+    follows.forEach(function(u){partners[u.id]={user:u,last:'',preview:'',unread:0,mine:false};});
+    var sent=[]; try{sent=await sGet('messages','?sender_id=eq.'+me.id+'&order=sent_at.desc&select=receiver_id,body,sent_at');}catch(e){}
+    var recv=[]; try{recv=await sGet('messages','?receiver_id=eq.'+me.id+'&order=sent_at.desc&select=sender_id,body,sent_at,status');}catch(e){}
     sent.forEach(function(m){
-      if(!partners[m.receiver_id]||m.sent_at>partners[m.receiver_id].last)
-        partners[m.receiver_id]={last:m.sent_at,preview:m.body,mine:true,unread:0};
+      if(partners[m.receiver_id]&&(!partners[m.receiver_id].last||m.sent_at>partners[m.receiver_id].last))
+        partners[m.receiver_id].last=m.sent_at,partners[m.receiver_id].preview=m.body,partners[m.receiver_id].mine=true;
     });
     recv.forEach(function(m){
-      if(!partners[m.sender_id]||m.sent_at>partners[m.sender_id].last)
-        partners[m.sender_id]={last:m.sent_at,preview:m.body,mine:false,unread:0};
-      if(m.status==='sent') partners[m.sender_id].unread=(partners[m.sender_id].unread||0)+1;
+      if(partners[m.sender_id]){
+        if(!partners[m.sender_id].last||m.sent_at>partners[m.sender_id].last)
+          partners[m.sender_id].last=m.sent_at,partners[m.sender_id].preview=m.body,partners[m.sender_id].mine=false;
+        if(m.status==='sent') partners[m.sender_id].unread=(partners[m.sender_id].unread||0)+1;
+      }
     });
-
-    var ids=Object.keys(partners);
-    if(!ids.length){el.innerHTML='<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">まだトークがありません<br>カレンダーから出発予定を設定すると<br>自動でトークが始まります</div></div>';return;}
-
-    var users={};
-    var us=await sGet('users','?id=in.('+ids.join(',')+')'+'&select=id,name,username');
-    us.forEach(function(u){users[u.id]=u;});
-
+    var sorted=Object.keys(partners).sort(function(a,b){
+      var la=partners[a].last||'',lb=partners[b].last||'';return lb>la?1:-1;
+    });
     var totalUnread=0;
-    var html='';
-    var sorted=ids.sort(function(a,b){return (partners[b].last||'')>(partners[a].last||'')?1:-1;});
-    sorted.forEach(function(uid){
-      var p=partners[uid];
-      var u=users[uid]||{name:'?',username:'?'};
+    var html=sorted.map(function(uid){
+      var p=partners[uid];var u=p.user;
       totalUnread+=p.unread||0;
-      html+='<div class="chat-item" onclick="openChat(\''+uid+'\')">'
+      var preview=p.preview?(p.mine?'あなた: ':'')+p.preview.slice(0,28):'タップしてトークを開始';
+      return '<div class="chat-item" onclick="openChat(\''+uid+'\')">'
         +'<div class="chat-avatar">'+esc(u.name[0])+'</div>'
         +'<div class="chat-info">'
           +'<div class="chat-name">'+esc(u.name)+'</div>'
-          +'<div class="chat-preview">'+(p.mine?'あなた: ':'')+esc((p.preview||'').slice(0,30))+'</div>'
+          +'<div class="chat-preview">'+esc(preview)+'</div>'
         +'</div>'
         +'<div class="chat-meta">'
-          +'<div class="chat-time">'+toJSTShort(p.last).slice(5,16)+'</div>'
+          +(p.last?'<div class="chat-time">'+toJSTShort(p.last).slice(5,16)+'</div>':'')
           +(p.unread?'<div class="chat-badge">'+p.unread+'</div>':'')
         +'</div>'
       +'</div>';
-    });
+    }).join('');
     el.innerHTML=html;
     var badge=document.getElementById('chatBadge');
     if(totalUnread>0){badge.textContent=totalUnread;badge.style.display='flex';}
     else{badge.style.display='none';}
-  }catch(e){el.innerHTML='<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">読み込みエラー</div></div>';}
+  }catch(e){
+    console.log('chatList error:',e);
+    if(follows.length){
+      el.innerHTML=follows.map(function(u){
+        return '<div class="chat-item" onclick="openChat(\''+u.id+'\')">'
+          +'<div class="chat-avatar">'+esc(u.name[0])+'</div>'
+          +'<div class="chat-info"><div class="chat-name">'+esc(u.name)+'</div><div class="chat-preview">タップしてトークを開始</div></div>'
+        +'</div>';
+      }).join('');
+    }else{
+      el.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">メンバーがいません</div></div>';
+    }
+  }
 }
 
 async function openChat(userId){
