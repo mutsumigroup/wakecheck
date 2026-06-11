@@ -808,33 +808,41 @@ async function loadTodayPlans(){
     var nowMin=now.getHours()*60+now.getMinutes();
 
     var html='';
+    // 送信した出発予定
     sent.forEach(function(p){
       var name=users[p.receiver_id]?users[p.receiver_id].name:'?';
       var t=p.departure_time.slice(0,5);
       var parts=t.split(':');
       var dMin=parseInt(parts[0])*60+parseInt(parts[1]);
-      var over=nowMin>dMin+5 && p.status==='pending';
-      var statusClass=p.status==='departed'?'done':over?'missed':'pending';
-      var statusLabel=p.status==='departed'?'出発済み':over?'未出発':'待機中';
-      html+='<div class="card" style="margin:0 12px 8px;">'
+      var sc={departed:'done',missed:'missed',pending:'pending'};
+      var sl={departed:'🚀 出発済み',missed:'🚨 未出発',pending:'⏳ 待機中'};
+      var statusClass=sc[p.status]||'pending';
+      var statusLabel=sl[p.status]||'待機中';
+      // 出発時刻になったら出発ボタンを表示
+      var showDeptBtn = (p.status==='pending' && nowMin>=dMin);
+      html+='<div class="card" style="margin:0 12px 8px;'+(showDeptBtn?'border:2px solid var(--green);':'')+'">'
         +'<div class="card-pad departure-card '+statusClass+'">'
           +'<div class="dc-header"><div class="dc-title">→ '+esc(name)+'へ通知</div><div class="dc-status '+statusClass+'">'+statusLabel+'</div></div>'
           +'<div class="dc-time">'+t+'</div>'
           +'<div class="dc-date">'+today+'</div>'
+          +(showDeptBtn?'<div class="dc-action"><button class="btn-depart" onclick="reportDeparted(\''+p.id+'\')" >🚀 出発しました</button></div>':'')
         +'</div>'
       +'</div>';
     });
 
+    // 受信した出発予定
     recv.forEach(function(p){
       var name=users[p.sender_id]?users[p.sender_id].name:'?';
       var t=p.departure_time.slice(0,5);
-      var statusClass=p.status==='departed'?'done':'pending';
+      var sc={departed:'done',scheduled:'done',missed:'missed',pending:'pending'};
+      var sl={departed:'🚀 出発済み',scheduled:'📅 スケジュール登録済み',missed:'🚨 未出発',pending:'⏳ 待機中'};
+      var statusClass=sc[p.status]||'pending';
+      var statusLabel=sl[p.status]||'待機中';
       html+='<div class="card" style="margin:0 12px 8px;">'
         +'<div class="card-pad departure-card '+statusClass+'">'
-          +'<div class="dc-header"><div class="dc-title">'+esc(name)+'さんの出発予定</div><div class="dc-status '+statusClass+'">'+(p.status==='departed'?'出発済み':'待機中')+'</div></div>'
+          +'<div class="dc-header"><div class="dc-title">'+esc(name)+'さんの出発予定</div><div class="dc-status '+statusClass+'">'+statusLabel+'</div></div>'
           +'<div class="dc-time">'+t+'</div>'
           +'<div class="dc-date">'+today+'</div>'
-          +(p.status==='pending'?'<div class="dc-action"><button class="btn-depart" onclick="reportDeparted(\''+p.id+'\')">🚀 出発しました</button></div>':'')
         +'</div>'
       +'</div>';
     });
@@ -947,12 +955,42 @@ async function loadChatMsgs(userId){
     var html=msgs.map(function(m){
       var mine=m.sender_id===me.id;
       if(m.msg_type==='departure_plan'){
+        var isSender = m.sender_id===me.id;
+        // ステータス判定
+        var dpStatus='pending', dpLabel='⏳ 待機中';
+        if(m.status==='scheduled'){dpStatus='done';dpLabel='📅 スケジュール登録済み';}
+        else if(m.status==='departed'){dpStatus='done';dpLabel='🚀 出発済み';}
+        else if(m.status==='missed'){dpStatus='missed';dpLabel='🚨 未出発';}
+
+        // ボタン（受信者のみ）
+        var actionBtn='';
+        if(!isSender){
+          if(m.status==='sent'||m.status==='pending'||!m.status){
+            actionBtn='<button onclick="addToSchedule(\''+m.id+'\')" style="width:100%;margin-top:10px;padding:11px;background:var(--accent);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">📅 スケジュールに追加</button>';
+          }else if(m.status==='scheduled'){
+            actionBtn='<div style="margin-top:8px;padding:8px;background:rgba(59,130,246,.1);border-radius:8px;font-size:12px;color:var(--accent2);text-align:center;">✅ スケジュールに登録しました</div>';
+          }
+        }
+        // 送信者：出発ボタン
+        var departBtn='';
+        if(isSender && m.status!=='departed' && m.status!=='missed'){
+          departBtn='<button onclick="reportDepartedFromChat(\''+m.id+'\')" style="width:100%;margin-top:8px;padding:11px;background:var(--green);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🚀 出発しました</button>';
+        }
+        // 送信者：削除ボタン
+        var deleteBtn='';
+        if(isSender && m.status!=='departed'){
+          deleteBtn='<button onclick="deleteDeparturePlan(\''+m.id+'\')" style="width:100%;margin-top:6px;padding:9px;background:transparent;border:1px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);font-size:13px;cursor:pointer;font-family:inherit;">🗑 出発予定を削除</button>';
+        }
         return '<div class="msg-row system-row">'
-          +'<div style="width:90%;">'
-            +'<div class="departure-card pending">'
-              +'<div class="dc-header"><div class="dc-title">📅 出発予定</div><div class="dc-status pending">待機中</div></div>'
+          +'<div style="width:92%;">'
+            +'<div class="departure-card '+dpStatus+'">'
+              +'<div class="dc-header">'
+                +'<div class="dc-title">📅 '+(isSender?'出発予定を送信':'出発予定が届きました')+'</div>'
+                +'<div class="dc-status '+dpStatus+'">'+dpLabel+'</div>'
+              +'</div>'
               +'<div class="dc-time">'+(m.plan_time||'').slice(0,5)+'</div>'
               +'<div class="dc-date">'+(m.plan_date||'')+'</div>'
+              +actionBtn+departBtn+deleteBtn
             +'</div>'
           +'</div>'
         +'</div>';
@@ -962,7 +1000,7 @@ async function loadChatMsgs(userId){
         +(mine?'':'<div class="msg-avatar" style="flex-shrink:0;">'+esc(avatarChar)+'</div>')
         +'<div style="max-width:calc(100% - 80px);display:flex;flex-direction:column;'+(mine?'align-items:flex-end;':'align-items:flex-start;')+'">'
           +'<div class="msg-bubble '+(mine?'mine':'theirs')+'" style="display:inline-block;cursor:pointer;" data-id="'+m.id+'" data-body="'+esc(m.body.trim())+'" data-mine="'+(mine?'1':'0')+'" oncontextmenu="showMsgMenu(event,this)" ontouchstart="startLongPress(event,this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">'+esc(m.body.replace(/[\r\n]+/g,'\n').trim()).replace(/\n/g,'<br>')+'</div>'
-          +'<div class="msg-time" style="margin-top:2px;">'+toJSTTime(m.sent_at)+'</div>'
+          +'<div class="msg-time" style="margin-top:2px;">'+toJSTTime(m.sent_at)+(mine&&m.status==='read'?' <span style="color:var(--accent2);font-size:10px;">既読</span>':'')+'</div>'
         +'</div>'
         +(mine?'<div class="msg-avatar" style="flex-shrink:0;background:var(--accent);">'+esc(me.name[0])+'</div>':'')
       +'</div>';
@@ -980,6 +1018,8 @@ async function sendChatMsg(){
     await sPost('messages',{id:uid(),sender_id:me.id,receiver_id:_currentChatUser,body:body,msg_type:'text',status:'sent',sent_at:nowStr()});
     input.value='';
     input.style.height='auto';
+    // 相手から来たメッセージを既読にする
+    try{await sPatch('messages',{status:'read'},'?sender_id=eq.'+_currentChatUser+'&receiver_id=eq.'+me.id+'&status=eq.sent');}catch(e2){}
     await loadChatMsgs(_currentChatUser);
     loadChatList();
   }catch(e){toast('⚠ エラー: '+e.message);}
@@ -1129,6 +1169,131 @@ async function deleteMsg(){
   }catch(e){toast('⚠ エラー: '+e.message);}
 }
 
+// ===== スケジュールに追加（受信者側） =====
+async function addToSchedule(msgId){
+  try{
+    // メッセージのステータスをscheduledに更新
+    await sPatch('messages',{status:'scheduled'},'?id=eq.'+msgId);
+    // メッセージ詳細を取得してdeparture_plansにも追加
+    var rows=await sGet('messages','?id=eq.'+msgId+'&select=sender_id,plan_date,plan_time');
+    if(rows.length&&rows[0].plan_date){
+      // 受信者のdeparture_plansにも追加（自分のスケジュールとして）
+      try{
+        await sPost('departure_plans',{
+          id:uid(), sender_id:rows[0].sender_id, receiver_id:me.id,
+          date:rows[0].plan_date, departure_time:rows[0].plan_time||'00:00:00',
+          status:'scheduled', created:nowStr()
+        });
+      }catch(e2){}
+    }
+    toast('📅 スケジュールに追加しました');
+    await loadChatMsgs(_currentChatUser);
+    loadChatList();
+    loadTodayPlans();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// ===== 出発ボタン（チャット内・送信者側） =====
+async function reportDepartedFromChat(msgId){
+  try{
+    await sPatch('messages',{status:'departed',reported_at:nowStr()},'?id=eq.'+msgId);
+    // departure_plansも更新
+    var rows=await sGet('messages','?id=eq.'+msgId+'&select=plan_date,receiver_id');
+    if(rows.length&&rows[0].plan_date){
+      await sPatch('departure_plans',{status:'departed',reported_at:nowStr()},
+        '?sender_id=eq.'+me.id+'&receiver_id=eq.'+rows[0].receiver_id+'&date=eq.'+rows[0].plan_date
+      ).catch(function(){});
+    }
+    toast('🚀 出発しました！');
+    await loadChatMsgs(_currentChatUser);
+    loadTodayPlans();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// ===== 出発予定を削除（送信者側） =====
+async function deleteDeparturePlan(msgId){
+  if(!confirm('この出発予定を削除しますか？'))return;
+  try{
+    var rows=await sGet('messages','?id=eq.'+msgId+'&select=plan_date,receiver_id');
+    // メッセージを削除
+    await sDel('messages','?id=eq.'+msgId);
+    // departure_plansも削除
+    if(rows.length&&rows[0].plan_date){
+      await sDel('departure_plans',
+        '?sender_id=eq.'+me.id+'&receiver_id=eq.'+rows[0].receiver_id+'&date=eq.'+rows[0].plan_date
+      ).catch(function(){});
+    }
+    toast('🗑 出発予定を削除しました');
+    await loadChatMsgs(_currentChatUser);
+    loadTodayPlans();
+    loadChatList();
+  }catch(e){toast('⚠ エラー: '+e.message);}
+}
+
+// ===== アラームチェック（送信者側） =====
+var _warnedPlans={};  // 警告済みプランID
+var _alarmFiredPlans={}; // アラーム発火済みプランID
+
+async function checkDeparturePlans(){
+  if(!me) return;
+  var today=new Date().toISOString().slice(0,10);
+  var now=new Date();
+  var nowMin=now.getHours()*60+now.getMinutes();
+  try{
+    // 自分が送信した出発予定で未出発のもの
+    var plans=await sGet('departure_plans',
+      '?sender_id=eq.'+me.id+'&date=eq.'+today+'&status=eq.pending&select=id,receiver_id,departure_time');
+
+    for(var i=0;i<plans.length;i++){
+      var p=plans[i];
+      var t=p.departure_time.slice(0,5).split(':');
+      var dMin=parseInt(t[0])*60+parseInt(t[1]);
+
+      // 出発時刻になったら警告通知（出勤者本人に）
+      if(nowMin>=dMin && !_warnedPlans[p.id]){
+        _warnedPlans[p.id]=true;
+        // 相手の名前を取得
+        var uRows=await sGet('users','?id=eq.'+p.receiver_id+'&select=name');
+        var uName=uRows.length?uRows[0].name:'相手';
+        toast('⚠ 出発時刻です！5分以内に出発報告がない場合'+uName+'さんへ連絡が行きます');
+        // 通知も表示
+        if(Notification&&Notification.permission==='granted'){
+          new Notification('⚠ 出発時刻になりました',{
+            body:'5分以内に出発報告がない場合'+uName+'さんへ連絡が行きます',
+            requireInteraction:true
+          });
+        }
+      }
+
+      // 出発時刻+5分でアラーム（相手に通知）
+      if(nowMin>=dMin+5 && !_alarmFiredPlans[p.id]){
+        _alarmFiredPlans[p.id]=true;
+        // missed に更新
+        await sPatch('departure_plans',{status:'missed'},'?id=eq.'+p.id);
+        // 相手の情報取得
+        var uRows2=await sGet('users','?id=eq.'+p.receiver_id+'&select=name,push_endpoint,push_p256dh,push_auth');
+        var uName2=uRows2.length?uRows2[0].name:'相手';
+        // 相手にアラーム表示（相手が同じブラウザを開いていれば）
+        // Push通知を送信
+        try{
+          await fetch(SURL+'/functions/v1/send-push',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+SKEY},
+            body:JSON.stringify({
+              to_user_id:p.receiver_id,
+              title:'🚨 未出発アラーム',
+              body:me.name+'さんが出発時刻を過ぎても出発報告をしていません！'
+            })
+          });
+        }catch(e2){}
+        // 自分にもアラーム
+        showAlarm(uName2, p.departure_time.slice(0,5), p.id);
+        loadTodayPlans();
+      }
+    }
+  }catch(e){}
+}
+
 // ===== ポーリング =====
 async function checkAlarms(){
   if(!me) return;
@@ -1161,6 +1326,7 @@ function startPolling(){
   setInterval(function(){
     if(!me) return;
     checkAlarms();
+    checkDeparturePlans();
     if(_currentChatUser) loadChatMsgs(_currentChatUser);
     loadChatList();
   }, 8000);
