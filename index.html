@@ -228,6 +228,17 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
 .empty-icon{font-size:48px;margin-bottom:12px;opacity:.5;}
 .empty-text{font-size:14px;text-align:center;}
 
+/* ===== 予定カード ===== */
+.event-item{padding:10px 14px;border-left:3px solid var(--accent);background:var(--navy3);border-radius:0 8px 8px 0;margin-bottom:6px;cursor:pointer;}
+.event-item.departure{border-left-color:var(--green);}
+.event-item.personal{border-left-color:var(--accent);}
+.event-item.work{border-left-color:var(--yellow);}
+.event-item.other{border-left-color:var(--muted);}
+.event-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+.event-time{font-size:11px;color:var(--muted);}
+.cal-day.has-event::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent);}
+.cal-day.has-departure::after{background:var(--green);}
+
 /* ===== その他 ===== */
 .divider{height:1px;background:var(--border);margin:0 16px;}
 </style>
@@ -291,10 +302,13 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
         <div id="calBody"></div>
       </div>
 
-      <!-- 今日の出発予定 -->
-      <div class="sec">今日の出発予定</div>
+      <!-- 選択日の予定 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px;">
+        <div class="sec" style="padding:0;" id="selectedDateLabel">今日の予定</div>
+        <button onclick="openEventModal(null)" style="padding:6px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">＋ 追加</button>
+      </div>
       <div id="todayPlans">
-        <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">今日の出発予定はありません</div></div>
+        <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">予定はありません</div></div>
       </div>
     </div>
 
@@ -418,6 +432,51 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
   </div>
 </div>
 
+<!-- 予定追加・編集モーダル -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="modal-title" id="eventModalTitle" style="margin:0;">予定を追加</div>
+      <button id="eventDeleteBtn" onclick="deleteEvent()" style="display:none;padding:6px 12px;background:transparent;border:1px solid rgba(239,68,68,.3);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer;">🗑 削除</button>
+    </div>
+    <div class="form-group">
+      <div class="form-label">📅 日付</div>
+      <div style="font-size:15px;font-weight:700;color:var(--accent2);" id="eventModalDate"></div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">📝 タイトル</div>
+      <input type="text" id="eventTitle" placeholder="予定のタイトル" style="width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;font-family:inherit;outline:none;">
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <div class="form-label">開始時刻</div>
+        <input type="time" id="eventStartTime" style="width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:15px;font-family:inherit;outline:none;">
+      </div>
+      <div>
+        <div class="form-label">終了時刻</div>
+        <input type="time" id="eventEndTime" style="width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:15px;font-family:inherit;outline:none;">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">🏷 カテゴリ</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;" id="eventCatList">
+        <div onclick="selectEventCat('personal')" id="cat_personal" class="cat-btn on" style="padding:8px 4px;text-align:center;border-radius:8px;border:2px solid var(--accent);background:rgba(59,130,246,.1);font-size:12px;cursor:pointer;">👤 個人</div>
+        <div onclick="selectEventCat('work')" id="cat_work" class="cat-btn" style="padding:8px 4px;text-align:center;border-radius:8px;border:2px solid var(--border);font-size:12px;cursor:pointer;">💼 仕事</div>
+        <div onclick="selectEventCat('departure')" id="cat_departure" class="cat-btn" style="padding:8px 4px;text-align:center;border-radius:8px;border:2px solid var(--border);font-size:12px;cursor:pointer;">🚀 出発</div>
+        <div onclick="selectEventCat('other')" id="cat_other" class="cat-btn" style="padding:8px 4px;text-align:center;border-radius:8px;border:2px solid var(--border);font-size:12px;cursor:pointer;">📌 その他</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-label">📋 メモ（任意）</div>
+      <textarea id="eventMemo" placeholder="メモを入力..." style="width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:none;height:80px;"></textarea>
+    </div>
+    <button class="btn-primary" onclick="saveEvent()">✅ 保存</button>
+    <div style="height:8px;"></div>
+    <button class="btn-secondary" onclick="closeEventModal()">キャンセル</button>
+  </div>
+</div>
+
 <!-- アラームオーバーレイ -->
 <div class="alarm-ov" id="alarmOv">
   <div class="alarm-icon">🚨</div>
@@ -483,6 +542,99 @@ function toast(msg){
   el.textContent=msg;el.classList.add('on');
   clearTimeout(_toastTimer);
   _toastTimer=setTimeout(function(){el.classList.remove('on');},2800);
+}
+
+// ===== 予定管理 =====
+var _events = JSON.parse(localStorage.getItem('dp_events')||'{}'); // {dateStr: [{id,title,startTime,endTime,cat,memo}]}
+var _editEventId = null;
+var _eventDate = null;
+var _selectedEventCat = 'personal';
+
+function openEventModal(dateStr, eventId){
+  _eventDate = dateStr || _selectedDate || new Date().toISOString().slice(0,10);
+  _editEventId = eventId || null;
+  var d = new Date(_eventDate+'T00:00:00');
+  document.getElementById('eventModalDate').textContent = formatDate(d);
+  document.getElementById('eventModalTitle').textContent = eventId ? '予定を編集' : '予定を追加';
+  document.getElementById('eventDeleteBtn').style.display = eventId ? '' : 'none';
+
+  if(eventId){
+    // 編集モード：既存データを読み込む
+    var evts = _events[_eventDate]||[];
+    var ev = evts.find(function(e){return e.id===eventId;});
+    if(ev){
+      document.getElementById('eventTitle').value = ev.title||'';
+      document.getElementById('eventStartTime').value = ev.startTime||'';
+      document.getElementById('eventEndTime').value = ev.endTime||'';
+      document.getElementById('eventMemo').value = ev.memo||'';
+      selectEventCat(ev.cat||'personal');
+    }
+  } else {
+    // 新規モード
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventStartTime').value = '';
+    document.getElementById('eventEndTime').value = '';
+    document.getElementById('eventMemo').value = '';
+    selectEventCat('personal');
+  }
+  document.getElementById('eventModal').classList.add('on');
+}
+
+function closeEventModal(){
+  document.getElementById('eventModal').classList.remove('on');
+  _editEventId = null;
+}
+
+function selectEventCat(cat){
+  _selectedEventCat = cat;
+  var cats = ['personal','work','departure','other'];
+  var colors = {personal:'var(--accent)',work:'var(--yellow)',departure:'var(--green)',other:'var(--muted)'};
+  cats.forEach(function(c){
+    var el = document.getElementById('cat_'+c);
+    if(!el) return;
+    if(c===cat){
+      el.style.borderColor = colors[c];
+      el.style.background = 'rgba(59,130,246,.1)';
+    } else {
+      el.style.borderColor = 'var(--border)';
+      el.style.background = 'transparent';
+    }
+  });
+}
+
+function saveEvent(){
+  var title = document.getElementById('eventTitle').value.trim();
+  if(!title){toast('⚠ タイトルを入力してください');return;}
+  var ev = {
+    id: _editEventId || uid(),
+    title: title,
+    startTime: document.getElementById('eventStartTime').value,
+    endTime: document.getElementById('eventEndTime').value,
+    cat: _selectedEventCat,
+    memo: document.getElementById('eventMemo').value.trim()
+  };
+  if(!_events[_eventDate]) _events[_eventDate] = [];
+  if(_editEventId){
+    _events[_eventDate] = _events[_eventDate].map(function(e){return e.id===_editEventId?ev:e;});
+  } else {
+    _events[_eventDate].push(ev);
+  }
+  localStorage.setItem('dp_events', JSON.stringify(_events));
+  closeEventModal();
+  toast(_editEventId?'✅ 予定を更新しました':'✅ 予定を追加しました');
+  renderCalendar();
+  loadTodayPlans();
+}
+
+function deleteEvent(){
+  if(!_editEventId||!_eventDate) return;
+  if(!confirm('この予定を削除しますか？')) return;
+  _events[_eventDate] = (_events[_eventDate]||[]).filter(function(e){return e.id!==_editEventId;});
+  localStorage.setItem('dp_events', JSON.stringify(_events));
+  closeEventModal();
+  toast('🗑 予定を削除しました');
+  renderCalendar();
+  loadTodayPlans();
 }
 
 // ===== スワイプ切り替え =====
@@ -671,7 +823,7 @@ async function renderCalendar(){
     var dateStr=_calDate.toISOString().slice(0,10);
     document.getElementById('calTitle').textContent=formatDate(_calDate);
     body.innerHTML='<div style="padding:0 12px 16px;">'
-      +'<div style="padding:20px;background:var(--navy3);border-radius:12px;text-align:center;cursor:pointer;" onclick="openDeptModal(\''+dateStr+'\')">'
+      +'<div style="padding:20px;background:var(--navy3);border-radius:12px;text-align:center;cursor:pointer;" onclick="selectDate(\''+dateStr+'\');">'
         +'<div style="font-size:48px;font-weight:900;color:var(--accent2);">'+_calDate.getDate()+'</div>'
         +'<div style="font-size:13px;color:var(--muted);">'+['日','月','火','水','木','金','土'][_calDate.getDay()]+'曜日</div>'
         +(_departurePlans[dateStr]?'<div style="margin-top:10px;font-size:12px;color:var(--yellow);">⏰ 出発予定あり</div>':'<div style="margin-top:10px;font-size:13px;color:var(--accent);">＋ 出発予定を追加</div>')
@@ -688,7 +840,7 @@ async function renderCalendar(){
       var ds=dd.toISOString().slice(0,10);
       var isToday=ds===todayStr;
       var plans=_departurePlans[ds]||[];
-      html+='<div class="week-day" onclick="openDeptModal(\''+ds+'\')" style="'+(isToday?'border:1px solid var(--accent);':'')+'">'
+      html+='<div class="week-day" onclick="selectDate(\''+ds+'\')" style="'+(isToday?'border:1px solid var(--accent);':'')+'">'
         +'<div class="week-day-date"><div class="week-day-num" style="color:'+(isToday?'var(--accent2)':'var(--text)')+'">'+dd.getDate()+'</div><div class="week-day-label">'+days[dd.getDay()]+'</div></div>'
         +'<div class="week-day-info">'+(plans.length?plans.map(function(p){return '<div style="font-size:12px;color:var(--yellow);">⏰ '+p.departure_time.slice(0,5)+'</div>';}).join(''):'<div class="week-day-plans">出発予定なし</div>')+'</div>'
         +'<div style="color:var(--accent);font-size:18px;">+</div>'
@@ -709,7 +861,8 @@ async function renderCalendar(){
       var ds=y+'-'+(m+1<10?'0':'')+(m+1)+'-'+(d<10?'0':'')+d;
       var isToday=ds===todayStr;
       var hasPlan=!!_departurePlans[ds];
-      html+='<div class="cal-day'+(isToday?' today':'')+(hasPlan?' has-plan':'')+'" onclick="openDeptModal(\''+ds+'\')">'+d+'</div>';
+      var isSelected2=ds===_selectedDate;var hasEvent2=!!(_events&&_events[ds]&&_events[ds].length);
+      html+='<div class="cal-day'+(isToday?' today':'')+(isSelected2?' selected':'')+(hasPlan?' has-plan':'')+(hasEvent2?' has-event':'')+'" onclick="selectDate(\''+ds+'\')">'+d+'</div>';
     }
     html+='</div>';
     body.innerHTML=html;
@@ -722,6 +875,12 @@ function formatDate(d){
 }
 
 // ===== 出発予定モーダル =====
+function selectDate(dateStr){
+  _selectedDate = dateStr;
+  renderCalendar();
+  loadTodayPlans();
+}
+
 function openDeptModal(dateStr){
   _selectedDate=dateStr;
   var d=new Date(dateStr+'T00:00:00');
@@ -786,7 +945,13 @@ async function saveDeparturePlan(){
 
 // ===== 今日の出発予定 =====
 async function loadTodayPlans(){
-  var today=new Date().toISOString().slice(0,10);
+  var today = _selectedDate || new Date().toISOString().slice(0,10);
+  // 選択日ラベル更新
+  var label = document.getElementById('selectedDateLabel');
+  if(label){
+    var isToday = today===new Date().toISOString().slice(0,10);
+    label.textContent = isToday?'今日の予定':formatDate(new Date(today+'T00:00:00'))+'の予定';
+  }
   try{
     // 自分が送信した予定
     var sent=await sGet('departure_plans','?sender_id=eq.'+me.id+'&date=eq.'+today+'&select=id,receiver_id,departure_time,status,reported_at');
@@ -847,6 +1012,28 @@ async function loadTodayPlans(){
       +'</div>';
     });
 
+    // ローカルに保存したカスタム予定を追加表示
+    var evts = (_events && _events[today])||[];
+    evts.sort(function(a,b){return (a.startTime||'')>(b.startTime||'')?1:-1;});
+    evts.forEach(function(ev){
+      var catColors = {personal:'var(--accent)',work:'var(--yellow)',departure:'var(--green)',other:'var(--muted)'};
+      var catLabels = {personal:'👤 個人',work:'💼 仕事',departure:'🚀 出発',other:'📌 その他'};
+      var color = catColors[ev.cat]||'var(--accent)';
+      var timeStr = ev.startTime?(ev.startTime+(ev.endTime?' 〜 '+ev.endTime:'')):'終日';
+      html+='<div style="margin:0 12px 8px;padding:12px 14px;background:var(--navy2);border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 12px 12px 0;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="openEventModal(\''+today+'\',\''+ev.id+'\')">'
+        +'<div>'
+          +'<div style="font-size:14px;font-weight:700;margin-bottom:2px;">'+esc(ev.title)+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);">'+timeStr+'　'+(catLabels[ev.cat]||'')+'</div>'
+          +(ev.memo?'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+esc(ev.memo)+'</div>':'')
+        +'</div>'
+        +'<div style="font-size:18px;color:var(--muted);">›</div>'
+      +'</div>';
+    });
+
+    if(!html){
+      el.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">予定はありません<br><small>右上の＋から追加できます</small></div></div>';
+      return;
+    }
     el.innerHTML=html;
   }catch(e){console.log('plans error:',e);}
 }
