@@ -1206,9 +1206,12 @@ async function loadChatMsgs(userId){
       // ファイル・画像・テキスト別表示
       var bubbleContent='';
       if(m.msg_type==='image'&&m.file_data){
-        bubbleContent='<img class="msg-img" src="'+m.file_data+'" alt="'+(m.file_name||'画像')+'" onclick="openFullImg(this.src)" loading="lazy">';
+        // キャッシュに保存
+        if(m.file_data) _fileCache[m.id]=m.file_data;
+        bubbleContent='<img class="msg-img" src="'+m.file_data+'" alt="'+(m.file_name||'画像')+'" onclick="openFullImg(\''+m.id+'\')" loading="lazy">';
       } else if(m.msg_type==='file'&&m.file_data){
-        bubbleContent='<div class="msg-file" onclick="downloadFile(\''+esc(m.file_name||'file')+'\',this.getAttribute(\'data-src\'))" data-src="'+m.file_data+'">'
+        if(m.file_data) _fileCache[m.id]=m.file_data;
+        bubbleContent='<div class="msg-file" onclick="downloadFile(\''+esc(m.file_name||'file')+'\',\''+m.id+'\')">'
           +'<div class="msg-file-icon">'+fileTypeIcon(m.file_type)+'</div>'
           +'<div class="msg-file-info">'
             +'<div class="msg-file-name">'+esc(m.file_name||'ファイル')+'</div>'
@@ -1341,6 +1344,7 @@ var _currentAlarmUser=null;
 
 // ===== ファイル送受信 =====
 var _attachFile = null;
+var _fileCache = {}; // メッセージIDとファイルデータのキャッシュ
 
 function handleFileSelect(input){
   var file = input.files[0];
@@ -1586,7 +1590,9 @@ async function checkDeparturePlans(){
 }
 
 // ===== 画像フルスクリーン表示 =====
-function openFullImg(src){
+function openFullImg(msgId){
+  var src = _fileCache[msgId];
+  if(!src){toast('⚠ 画像を読み込めませんでした');return;}
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;';
   var img=document.createElement('img');
@@ -1598,7 +1604,9 @@ function openFullImg(src){
 }
 
 // ===== ファイルダウンロード =====
-function downloadFile(name, src){
+function downloadFile(name, msgId){
+  var src = _fileCache[msgId];
+  if(!src){toast('⚠ ファイルを読み込めませんでした');return;}
   var a=document.createElement('a');
   a.href=src;
   a.download=name;
