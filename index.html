@@ -239,6 +239,15 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
 .cal-day.has-event::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent);}
 .cal-day.has-departure::after{background:var(--green);}
 
+/* ===== ファイルメッセージ ===== */
+.msg-file{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--navy3);border:1px solid var(--border);border-radius:12px;cursor:pointer;max-width:260px;}
+.msg-file-icon{font-size:28px;flex-shrink:0;}
+.msg-file-info{min-width:0;}
+.msg-file-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+.msg-file-size{font-size:11px;color:var(--muted);}
+.msg-img{max-width:220px;max-height:220px;border-radius:12px;object-fit:cover;cursor:pointer;display:block;}
+.msg-img:hover{opacity:.9;}
+
 /* ===== その他 ===== */
 .divider{height:1px;background:var(--border);margin:0 16px;}
 </style>
@@ -403,8 +412,19 @@ html,body{height:100%;background:var(--navy);color:var(--text);font-family:'Noto
   <div class="chat-msgs" id="chatMsgs"></div>
   <div class="chat-input-area">
     <div class="chat-input-row">
+      <button onclick="document.getElementById('fileInput').click()" style="width:36px;height:36px;border-radius:50%;background:var(--navy3);border:1px solid var(--border);color:var(--muted);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📎</button>
       <textarea class="chat-input" id="chatInputText" placeholder="メッセージを入力..." rows="1" oninput="autoResize(this)"></textarea>
       <button class="btn-send" onclick="sendChatMsg()">➤</button>
+    </div>
+    <input type="file" id="fileInput" style="display:none;" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="handleFileSelect(this)">
+    <!-- 添付プレビュー -->
+    <div id="attachPreview" style="display:none;margin-top:8px;padding:8px;background:var(--navy3);border-radius:10px;display:none;align-items:center;gap:8px;">
+      <div id="attachIcon" style="font-size:24px;"></div>
+      <div style="flex:1;min-width:0;">
+        <div id="attachName" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        <div id="attachSize" style="font-size:11px;color:var(--muted);"></div>
+      </div>
+      <button onclick="cancelAttach()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;">✕</button>
     </div>
   </div>
 </div>
@@ -1183,14 +1203,20 @@ async function loadChatMsgs(userId){
         +'</div>';
       }
       var avatarChar = mine ? me.name[0] : ((_chatPartner&&_chatPartner.name)?_chatPartner.name[0]:'?');
-      return '<div class="msg-row '+(mine?'mine':'')+'" style="align-items:flex-end;">'
-        +(mine?'':'<div class="msg-avatar" style="flex-shrink:0;">'+esc(avatarChar)+'</div>')
-        +'<div style="max-width:calc(100% - 80px);display:flex;flex-direction:column;'+(mine?'align-items:flex-end;':'align-items:flex-start;')+'">'
-          +'<div class="msg-bubble '+(mine?'mine':'theirs')+'" style="display:inline-block;cursor:pointer;" data-id="'+m.id+'" data-body="'+esc(m.body.trim())+'" data-mine="'+(mine?'1':'0')+'" oncontextmenu="showMsgMenu(event,this)" ontouchstart="startLongPress(event,this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">'+esc(m.body.replace(/[\r\n]+/g,'\n').trim()).replace(/\n/g,'<br>')+'</div>'
-          +'<div class="msg-time" style="margin-top:2px;">'+toJSTTime(m.sent_at)+(mine&&m.status==='read'?' <span style="color:var(--accent2);font-size:10px;">既読</span>':'')+'</div>'
-        +'</div>'
-        +(mine?'<div class="msg-avatar" style="flex-shrink:0;background:var(--accent);">'+esc(me.name[0])+'</div>':'')
-      +'</div>';
+      // ファイル・画像・テキスト別表示
+      var bubbleContent='';
+      if(m.msg_type==='image'&&m.file_data){
+        bubbleContent='<img class="msg-img" src="'+m.file_data+'" alt="'+(m.file_name||'画像')+'" onclick="openFullImg(this.src)" loading="lazy">';
+      } else if(m.msg_type==='file'&&m.file_data){
+        bubbleContent='<div class="msg-file" onclick="downloadFile(\''+esc(m.file_name||'file')+'\',this.getAttribute(\'data-src\'))" data-src="'+m.file_data+'">'
+          +'<div class="msg-file-icon">'+fileTypeIcon(m.file_type)+'</div>'
+          +'<div class="msg-file-info">'
+            +'<div class="msg-file-name">'+esc(m.file_name||'ファイル')+'</div>'
+            +'<div class="msg-file-size">'+(m.file_size?formatFileSize(m.file_size):'')+'　タップでDL</div>'
+          +'</div></div>';
+      } else {
+        bubbleContent='<div class="msg-bubble '+(mine?'mine':'theirs')+'" style="display:inline-block;cursor:pointer;" data-id="'+m.id+'" data-body="'+esc((m.body||'').trim())+'" data-mine="'+(mine?'1':'0')+'" oncontextmenu="showMsgMenu(event,this)" ontouchstart="startLongPress(event,this)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">'+esc((m.body||'').replace(/[\r\n]+/g,'\n').trim()).replace(/\n/g,'<br>')+'</div>';
+      }
     }).join('');
     el.innerHTML=html;
     el.scrollTop=el.scrollHeight;
@@ -1200,12 +1226,30 @@ async function loadChatMsgs(userId){
 async function sendChatMsg(){
   var input=document.getElementById('chatInputText');
   var body=input.value.trim();
-  if(!body||!_currentChatUser)return;
+  if(!body&&!_attachFile){toast('⚠ メッセージまたはファイルを選択してください');return;}
+  if(!_currentChatUser)return;
   try{
-    await sPost('messages',{id:uid(),sender_id:me.id,receiver_id:_currentChatUser,body:body,msg_type:'text',status:'sent',sent_at:nowStr()});
+    if(_attachFile){
+      // ファイルをBase64に変換して送信
+      var b64 = await fileToBase64(_attachFile);
+      var isImage = _attachFile.type.startsWith('image/');
+      await sPost('messages',{
+        id:uid(), sender_id:me.id, receiver_id:_currentChatUser,
+        body: body||_attachFile.name,
+        msg_type: isImage?'image':'file',
+        file_data: b64,
+        file_name: _attachFile.name,
+        file_size: _attachFile.size,
+        file_type: _attachFile.type,
+        status:'sent', sent_at:nowStr()
+      });
+      cancelAttach();
+    }
+    if(body){
+      await sPost('messages',{id:uid(),sender_id:me.id,receiver_id:_currentChatUser,body:body,msg_type:'text',status:'sent',sent_at:nowStr()});
+    }
     input.value='';
     input.style.height='auto';
-    // 相手から来たメッセージを既読にする
     try{await sPatch('messages',{status:'read'},'?sender_id=eq.'+_currentChatUser+'&receiver_id=eq.'+me.id+'&status=eq.sent');}catch(e2){}
     await loadChatMsgs(_currentChatUser);
     loadChatList();
@@ -1294,6 +1338,66 @@ function closeAlarm(action){
   }
 }
 var _currentAlarmUser=null;
+
+// ===== ファイル送受信 =====
+var _attachFile = null;
+
+function handleFileSelect(input){
+  var file = input.files[0];
+  if(!file) return;
+  if(file.size > 5 * 1024 * 1024){
+    toast('⚠ ファイルサイズは5MB以下にしてください');
+    input.value='';
+    return;
+  }
+  _attachFile = file;
+  var preview = document.getElementById('attachPreview');
+  var icon = document.getElementById('attachIcon');
+  var name = document.getElementById('attachName');
+  var size = document.getElementById('attachSize');
+  // ファイルタイプに応じたアイコン
+  var type = file.type;
+  if(type.startsWith('image/')){icon.textContent='🖼';}
+  else if(type.includes('pdf')){icon.textContent='📄';}
+  else if(type.includes('word')||type.includes('document')){icon.textContent='📝';}
+  else if(type.includes('excel')||type.includes('sheet')){icon.textContent='📊';}
+  else{icon.textContent='📎';}
+  name.textContent = file.name;
+  size.textContent = formatFileSize(file.size);
+  preview.style.display='flex';
+}
+
+function cancelAttach(){
+  _attachFile = null;
+  document.getElementById('attachPreview').style.display='none';
+  document.getElementById('fileInput').value='';
+}
+
+function formatFileSize(bytes){
+  if(bytes<1024) return bytes+'B';
+  if(bytes<1024*1024) return (bytes/1024).toFixed(1)+'KB';
+  return (bytes/1024/1024).toFixed(1)+'MB';
+}
+
+function fileTypeIcon(type){
+  if(!type) return '📎';
+  if(type.startsWith('image/')) return '🖼';
+  if(type.includes('pdf')) return '📄';
+  if(type.includes('word')||type.includes('document')) return '📝';
+  if(type.includes('excel')||type.includes('sheet')) return '📊';
+  if(type.includes('text')) return '📃';
+  return '📎';
+}
+
+// Base64に変換
+function fileToBase64(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(e){ resolve(e.target.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // ===== メッセージ削除メニュー =====
 var _menuMsgId=null, _menuMsgBody='', _longPressTimer=null;
@@ -1479,6 +1583,29 @@ async function checkDeparturePlans(){
       }
     }
   }catch(e){}
+}
+
+// ===== 画像フルスクリーン表示 =====
+function openFullImg(src){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+  var img=document.createElement('img');
+  img.src=src;
+  img.style.cssText='max-width:95%;max-height:90vh;border-radius:8px;object-fit:contain;';
+  ov.appendChild(img);
+  ov.onclick=function(){document.body.removeChild(ov);};
+  document.body.appendChild(ov);
+}
+
+// ===== ファイルダウンロード =====
+function downloadFile(name, src){
+  var a=document.createElement('a');
+  a.href=src;
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('📥 ダウンロードしました');
 }
 
 // ===== ポーリング =====
